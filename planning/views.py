@@ -11,8 +11,10 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from . import services
 from .forms import MitarbeiterForm, SchichtvorlageForm
 from .models import Mitarbeiter, Schichtvorlage
 from .services import aktueller_betrieb
@@ -20,8 +22,16 @@ from .services import aktueller_betrieb
 
 @login_required
 def schedule(request: HttpRequest) -> HttpResponse:
-    """Dienstplan-Gitter — Mitarbeiter auf Schichten einteilen (Build-Loop baut es aus)."""
-    return render(request, "planning/schedule.html", {})
+    """Dienstplan-Wochengitter — Mitarbeiter × Wochentage mit Wochen-Navigation.
+
+    Die anzuzeigende Woche kommt aus dem Query-Parameter ``start`` (ISO-Datum);
+    ohne ihn wird die laufende Woche gezeigt. Das Einteilen selbst folgt in M5.
+    """
+    betrieb = aktueller_betrieb()
+    heute = timezone.localdate()
+    start = services.parse_wochenstart(request.GET.get("start"), heute)
+    gitter = services.wochengitter(betrieb, start, heute)
+    return render(request, "planning/schedule.html", {"gitter": gitter, "heute": heute})
 
 
 @login_required

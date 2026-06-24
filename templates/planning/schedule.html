@@ -1,7 +1,51 @@
 {% extends "main.html" %}
 {% block title %}Dienstplan · Schichtwerk{% endblock %}
 {% block page_title %}Dienstplan{% endblock %}
+{% block page_sub %}<div class="page-sub">Woche {{ gitter.start|date:"d.m." }}–{{ gitter.ende|date:"d.m.Y" }}</div>{% endblock %}
 {% block nav_schedule %}active{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-ghost btn-sm" href="?start={{ gitter.vorwoche|date:'Y-m-d' }}" title="Vorige Woche">←</a>
+<a class="btn btn-ghost btn-sm" href="{% url 'planning:schedule' %}">Heute</a>
+<a class="btn btn-ghost btn-sm" href="?start={{ gitter.naechste|date:'Y-m-d' }}" title="Nächste Woche">→</a>
+{% endblock %}
 {% block content %}
-<div class="card card-pad"><p class="muted">Hier entsteht das Wochen-Gitter zum Einteilen der Mitarbeiter auf Schichten.</p></div>
+{% if gitter.zeilen %}
+<div class="card">
+  <div class="schedule">
+    <table class="sched">
+      <thead>
+        <tr>
+          <th class="row-emp">Mitarbeiter</th>
+          {% for tag in gitter.kopf %}
+          <th class="{% if tag.ist_heute %}today{% endif %}">{{ tag.kuerzel }} {{ tag.datum|date:"d.m." }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for zeile in gitter.zeilen %}
+        <tr>
+          <td class="row-emp">
+            <span class="color-dot" style="background:{{ zeile.person.farbe }}"></span>{{ zeile.person.voller_name }}
+          </td>
+          {% for zelle in zeile.zellen %}
+          <td class="cell">
+            {% for schicht in zelle.schichten %}
+            <span class="shift" style="border-left-color:{{ schicht.vorlage.farbe }}">
+              <span class="t">{{ schicht.beginn|time:"H:i" }}</span> {{ schicht.vorlage.name }}
+            </span>
+            {% endfor %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card"><div class="empty">
+  <p>Noch keine aktiven Mitarbeiter — lege zuerst Mitarbeiter an, um den Plan zu füllen.</p>
+  <a class="btn btn-primary btn-sm" href="{% url 'planning:mitarbeiter_neu' %}">Mitarbeiter anlegen</a>
+</div></div>
+{% endif %}
 {% endblock %}

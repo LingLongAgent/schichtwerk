@@ -16,7 +16,7 @@ Stack: Django + eigenes Produktions-Design (`static/css/design.css`).
 - [x] M1 (#1) · Datenmodell — Betrieb, Abteilung, Mitarbeiter (Rolle/Vertragsstunden/Farbe), Schichtvorlage (Start/Ende/Abteilung), Schicht-Instanz + Zuweisung. Migrationen, factories, Tests, Admin.
 - [x] M2 (#2) · Mitarbeiter-CRUD — Liste/Anlegen/Bearbeiten/Detail auf dem Design. Tests.
 - [x] M3 (#3) · Schichtvorlagen-CRUD — Früh/Spät/Nacht etc. (Zeiten, Abteilung, benötigte Rolle). Tests.
-- [ ] M4 (#4) · Dienstplan-Wochengitter — Gitter (Mitarbeiter × Wochentage), Wochen-Navigation, Schichten anzeigen. Tests.
+- [x] M4 (#4) · Dienstplan-Wochengitter — Gitter (Mitarbeiter × Wochentage), Wochen-Navigation, Schichten anzeigen. Tests.
 - [ ] M5 (#5) · Einteilen — Mitarbeiter einer Schicht an einem Tag zuweisen/entfernen; offene Schichten markiert. Tests.
 - [ ] M6 (#6) · Arbeitszeit-Regeln & Konflikte — Doppelbelegung, Ruhezeit (<11h), Wochenhöchststunden → Warnungen. Pure Logik + Tests.
 - [ ] M7 (#7) · Abwesenheiten/Urlaub — je Mitarbeiter (Urlaub/Krank) blockiert Zuweisung, im Gitter sichtbar. Tests.

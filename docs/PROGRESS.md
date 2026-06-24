@@ -4,6 +4,15 @@ Neueste oben.
 
 ## Done
 
+- **M4 · Dienstplan-Wochengitter** — Wochentabelle „Mitarbeiter × Wochentage" (Mo–So)
+  auf dem `.sched`-Design: Kopfzeile mit Tageskürzel/Datum (heute hervorgehoben),
+  je aktivem Mitarbeiter eine Zeile mit Farbpunkt, Schicht-Chips pro Tag (nach
+  Beginn sortiert, Farbe der Vorlage). Wochen-Navigation per `?start=`-Parameter
+  (←/Heute/→); kaputte URL fällt sicher auf die laufende Woche zurück. Gitter-Aufbau
+  in `services.wochengitter` herausgelöst und ohne HTTP testbar; eine Sammelabfrage
+  statt N+1. Empty State, wenn noch keine aktiven Mitarbeiter da sind. 55 Tests grün
+  (16 neu), ruff sauber.
+
 - **M3 · Schichtvorlagen-CRUD** — Liste (Name/Farbpunkt, Zeitfenster, Dauer in h,
   Abteilung, benötigte Rolle), Detail (mit Nachtschicht-Badge), Anlegen/Bearbeiten
   per ModelForm und Löschen (POST-only, Bestätigungsdialog). `SchichtvorlageForm`
