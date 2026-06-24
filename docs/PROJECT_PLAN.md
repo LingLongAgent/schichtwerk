@@ -21,7 +21,7 @@ Stack: Django + eigenes Produktions-Design (`static/css/design.css`).
 - [x] M6 (#6) · Arbeitszeit-Regeln & Konflikte — Doppelbelegung, Ruhezeit (<11h), Wochenhöchststunden → Warnungen. Pure Logik + Tests.
 - [x] M7 (#7) · Abwesenheiten/Urlaub — je Mitarbeiter (Urlaub/Krank) blockiert Zuweisung, im Gitter sichtbar. Tests.
 - [x] M8 (#8) · Abteilungen/Standorte — verwalten + Plan danach filtern. Tests.
-- [ ] M9 (#9) · Dashboard (echt) — KPIs (Mitarbeiter, Schichten/Woche, offene Schichten, Konflikte), Stunden je Mitarbeiter, Wochenbesetzung. Tests.
+- [x] M9 (#9) · Dashboard (echt) — KPIs (Mitarbeiter, Schichten/Woche, offene Schichten, Konflikte), Stunden je Mitarbeiter, Wochenbesetzung. Tests.
 - [ ] M10 (#10) · Registrierung + Onboarding — Betrieb + Login anlegen, erste Mitarbeiter/Schichten geführt. Tests.
 - [ ] M11 (#11) · Stundenübersicht + Export — Stunden je Mitarbeiter/Woche, CSV-Export des Plans. Tests.
 - [ ] M12 (#12) · Politur & Produktionsreife — Validierung, Empty States, responsive, Konsistenz. Finaler Durchgang.

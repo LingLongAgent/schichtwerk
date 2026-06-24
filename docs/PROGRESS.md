@@ -4,6 +4,20 @@ Neueste oben.
 
 ## Done
 
+- **M9 · Dashboard (echt)** — Die Übersicht zeigt jetzt echte Wochenzahlen statt
+  Platzhalter. Neue Service-Funktion ``dashboard_daten`` (ohne HTTP testbar) lädt
+  die Zuweisungen der laufenden Woche in einer Abfrage und verdichtet sie: vier
+  KPIs (aktive Mitarbeiter, geplante Schichten der Woche, offene Schichten,
+  erkannte Konflikte), Stunden je Mitarbeiter gegen die Vertragszeit (mit
+  Auslastungs-Balken, Überlast > 100 % als Warn-Badge, absteigend sortiert) und
+  die Tagesbesetzung Mo–So (eingeteilt/offen je Tag, heute hervorgehoben). Greift
+  für Offen-Status und Konflikte auf die bestehenden Bausteine
+  (``offene_schichten_je_tag``, ``regeln.wochenkonflikte``) zurück, damit die
+  Übersicht dieselbe Wahrheit wie der Dienstplan zeigt. Neues Design auf dem
+  System (``.dash-cols``, ``.bar``/``.bar-fill``, ``.besetzung``). 156 Tests grün
+  (11 neu: leerer Betrieb, KPI-Zählung, Stunden-Summe inkl. Wochengrenze,
+  Überlast-Kappung, Sortierung, Tagesbesetzung, Konflikt-KPI, View), ruff sauber.
+
 - **M8 · Abteilungen/Standorte** — Vollständige Abteilungsverwaltung auf dem
   Design: Liste mit Zähler je Abteilung (Mitarbeiter/Vorlagen, eine
   ``Count``-Annotation statt N+1), Anlegen, Umbenennen, Löschen (POST-only). Das

@@ -282,6 +282,91 @@ def abwesenheiten_je_woche(
     return treffer
 
 
+def dashboard_daten(betrieb: Betrieb, start: date, heute: date) -> dict:
+    """Kennzahlen und Auslastung der laufenden Woche für die Übersicht (M9).
+
+    Die Übersicht soll einem Planer auf einen Blick zeigen, wie es um die Woche
+    steht: vier Kennzahlen (aktive Mitarbeiter, geplante Schichten, noch offene
+    Schichten, erkannte Konflikte), die geplanten Stunden je Mitarbeiter im
+    Verhältnis zur Vertragszeit sowie die Besetzung je Wochentag.
+
+    Alle Zuweisungen der Woche werden einmalig geladen und im Speicher zu Stunden
+    je Mitarbeiter und Einteilungen je Tag verdichtet (kein N+1). Offene Schichten
+    und Konflikte greifen auf die bereits bestehenden Bausteine (``offene_
+    schichten_je_tag``, ``regeln.wochenkonflikte``) zurück, damit die Übersicht
+    dieselbe Wahrheit zeigt wie der Dienstplan.
+    """
+    tage = wochentage(start)
+    aktive = list(betrieb.mitarbeiter.filter(aktiv=True))
+
+    stunden_je_person: dict[int, float] = defaultdict(float)
+    eingeteilt_je_tag: dict[date, int] = defaultdict(int)
+    zuweisungen = Zuweisung.objects.filter(
+        mitarbeiter__betrieb=betrieb,
+        schicht__datum__range=(tage[0], tage[-1]),
+    ).select_related("schicht__vorlage")
+    for zuweisung in zuweisungen:
+        stunden_je_person[zuweisung.mitarbeiter_id] += zuweisung.schicht.dauer_stunden
+        eingeteilt_je_tag[zuweisung.schicht.datum] += 1
+
+    schichten_diese_woche = Schicht.objects.filter(
+        vorlage__betrieb=betrieb, datum__range=(tage[0], tage[-1])
+    ).count()
+
+    offen_je_tag = offene_schichten_je_tag(betrieb, tage)
+    offen_gesamt = sum(len(schichten) for schichten in offen_je_tag.values())
+
+    konflikte_je_person = regeln.wochenkonflikte(betrieb, tage[0], tage[-1])
+    konflikte_gesamt = sum(len(konflikte) for konflikte in konflikte_je_person.values())
+
+    # Stunden je Mitarbeiter: geplante gegen vertraglich vereinbarte Zeit. Die
+    # Auslastung treibt die Balkenbreite; über 100 % markiert Mehrarbeit.
+    stunden_zeilen = []
+    for person in aktive:
+        geplant = stunden_je_person.get(person.id, 0.0)
+        soll = float(person.vertragsstunden)
+        auslastung = round(geplant / soll * 100) if soll else 0
+        stunden_zeilen.append(
+            {
+                "person": person,
+                "geplant": geplant,
+                "soll": soll,
+                "auslastung": auslastung,
+                "balken": min(auslastung, 100),
+                "ueberlastet": auslastung > 100,
+            }
+        )
+    stunden_zeilen.sort(key=lambda zeile: zeile["geplant"], reverse=True)
+
+    besetzung = [
+        {
+            "datum": tag,
+            "kuerzel": WOCHENTAG_KUERZEL[index],
+            "ist_heute": tag == heute,
+            "eingeteilt": eingeteilt_je_tag.get(tag, 0),
+            "offen": len(offen_je_tag.get(tag, [])),
+        }
+        for index, tag in enumerate(tage)
+    ]
+
+    kpis = [
+        {"label": "Mitarbeiter", "value": len(aktive)},
+        {"label": "Schichten diese Woche", "value": schichten_diese_woche},
+        {"label": "Offene Schichten", "value": offen_gesamt},
+        {"label": "Konflikte", "value": konflikte_gesamt},
+    ]
+
+    return {
+        "start": start,
+        "ende": tage[-1],
+        "kpis": kpis,
+        "stunden_zeilen": stunden_zeilen,
+        "besetzung": besetzung,
+        "hat_offene": offen_gesamt > 0,
+        "hat_konflikte": konflikte_gesamt > 0,
+    }
+
+
 def tageszuteilung(betrieb: Betrieb, person: Mitarbeiter, datum: date) -> dict:
     """Daten für die Einteilen-Seite eines Mitarbeiters an einem Tag.
 

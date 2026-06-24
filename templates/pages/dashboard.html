@@ -1,15 +1,57 @@
 {% extends "main.html" %}
 {% block title %}Übersicht · Schichtwerk{% endblock %}
 {% block page_title %}Übersicht{% endblock %}
+{% block page_sub %}<div class="page-sub">Woche {{ daten.start|date:"d.m." }}–{{ daten.ende|date:"d.m.Y" }}</div>{% endblock %}
 {% block nav_dashboard %}active{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-primary btn-sm" href="{% url 'planning:schedule' %}">Zum Dienstplan</a>
+{% endblock %}
 {% block content %}
 <div class="kpi-grid">
-  {% for kpi in kpis %}
+  {% for kpi in daten.kpis %}
   <div class="card kpi-card"><span class="kpi-label">{{ kpi.label }}</span>
     <span class="kpi-val tnum">{{ kpi.value }}</span></div>
   {% endfor %}
 </div>
-<div class="section-head" style="margin-top:24px"><h2>Diese Woche</h2>
-  <a class="btn btn-primary btn-sm" href="{% url 'planning:schedule' %}">Zum Dienstplan</a></div>
-<div class="card card-pad"><p class="muted">Noch keine Schichten geplant. Lege Mitarbeiter und Schichten an, um den Dienstplan zu füllen.</p></div>
+
+<div class="dash-cols">
+  <div class="card card-pad">
+    <div class="section-head"><h2>Stunden je Mitarbeiter</h2>
+      <span class="muted" style="font-size:12px">geplant / Vertrag</span></div>
+    {% if daten.stunden_zeilen %}
+    <table class="tbl">
+      <thead><tr><th>Mitarbeiter</th><th>Auslastung</th><th class="num">Stunden</th></tr></thead>
+      <tbody>
+      {% for zeile in daten.stunden_zeilen %}
+        <tr>
+          <td class="cell-strong"><span class="color-dot" style="background:{{ zeile.person.farbe }}"></span>{{ zeile.person.voller_name }}</td>
+          <td>
+            <div class="bar"><div class="bar-fill{% if zeile.ueberlastet %} bar-over{% endif %}" style="width:{{ zeile.balken }}%"></div></div>
+          </td>
+          <td class="num tnum">{{ zeile.geplant|floatformat:"-1" }} / {{ zeile.soll|floatformat:"-1" }} h
+            {% if zeile.ueberlastet %}<span class="badge badge-warn"><span class="dot"></span>{{ zeile.auslastung }}%</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="muted">Noch keine aktiven Mitarbeiter. Lege Mitarbeiter an, um Stunden zu planen.</p>
+    {% endif %}
+  </div>
+
+  <div class="card card-pad">
+    <div class="section-head"><h2>Wochenbesetzung</h2></div>
+    <div class="besetzung">
+      {% for tag in daten.besetzung %}
+      <div class="bes-tag{% if tag.ist_heute %} today{% endif %}">
+        <div class="bes-tag-kopf">{{ tag.kuerzel }} <span class="muted">{{ tag.datum|date:"d.m." }}</span></div>
+        <div class="bes-zahl tnum">{{ tag.eingeteilt }}</div>
+        <div class="bes-label">eingeteilt</div>
+        {% if tag.offen %}<span class="badge badge-warn"><span class="dot"></span>{{ tag.offen }} offen</span>
+        {% else %}<span class="badge badge-ok"><span class="dot"></span>besetzt</span>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
 {% endblock %}
