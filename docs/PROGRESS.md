@@ -4,6 +4,18 @@ Neueste oben.
 
 ## Done
 
+- **M6 · Arbeitszeit-Regeln & Konflikte** — Drei reine Prüffunktionen über
+  ``Schichtzeit``-Werte (ohne DB/HTTP, am ArbZG orientiert): Doppelbelegung
+  (Überlappung), Ruhezeit < 11 h zwischen Folgeschichten und Wochenhöchststunden
+  (> 48 h). Grenzwerte je Aufruf überschreibbar, Nachtschichten über Mitternacht
+  korrekt behandelt; ``Schicht.beginn_am``/``ende_am`` liefern die konkreten
+  Zeitfenster. Der DB-Wrapper ``wochenkonflikte`` lädt die Woche in einer Abfrage
+  und gruppiert je Mitarbeiter. Das Wochengitter reicht die Konflikte an die
+  Oberfläche durch: Warnkarte mit Klartext je Mitarbeiter, Zähler-Badge an der
+  Mitarbeiterzeile und ``.shift.warn``-Markierung der beteiligten Chips
+  (``konflikt_schicht_ids``). 101 Tests grün (24 neu: 20 Regel-Logik inkl.
+  Grenzfälle, 4 Gitter-/View-Integration), ruff sauber.
+
 - **M5 · Einteilen** — Das Wochengitter ist jetzt bearbeitbar. Jede Tageszelle
   führt über eine `.shift-add`-Schaltfläche zur Einteilen-Seite eines Mitarbeiters
   an einem Tag: dort werden bestehende Zuweisungen mit Entfernen-Knopf gelistet und

@@ -18,6 +18,7 @@ from datetime import date, timedelta
 
 from django.db.models import Count
 
+from . import regeln
 from .models import Betrieb, Mitarbeiter, Schicht, Schichtvorlage, Zuweisung
 
 STANDARD_BETRIEB_NAME = "Mein Betrieb"
@@ -75,6 +76,12 @@ def wochengitter(betrieb: Betrieb, start: date, heute: date) -> dict:
     Zuweisungen der Woche werden in einer einzigen Abfrage geladen und im
     Speicher den (Mitarbeiter, Tag)-Zellen zugeordnet, damit das Gitter keine
     N+1-Abfragen auslöst.
+
+    Zusätzlich werden die Arbeitszeit-Regeln (M6) je Mitarbeiter ausgewertet:
+    ``zeilen[i]["konflikte"]`` trägt die Verstöße der Zeile, ``konflikte`` eine
+    nach Mitarbeitern gruppierte Übersicht und ``konflikt_schicht_ids`` die Menge
+    der beteiligten Schichten, damit die Oberfläche die betroffenen Chips
+    hervorheben kann.
     """
     tage = wochentage(start)
     mitarbeiter = list(betrieb.mitarbeiter.filter(aktiv=True))
@@ -87,13 +94,27 @@ def wochengitter(betrieb: Betrieb, start: date, heute: date) -> dict:
     for zuweisung in zuweisungen:
         belegung[(zuweisung.mitarbeiter_id, zuweisung.schicht.datum)].append(zuweisung.schicht)
 
+    # Arbeitszeit-Regeln je Mitarbeiter prüfen (M6); die betroffenen Schicht-IDs
+    # sammeln, damit die zugehörigen Chips im Gitter als Warnung markiert werden.
+    konflikte_je_person = regeln.wochenkonflikte(betrieb, tage[0], tage[-1])
+    konflikt_schicht_ids = {
+        schicht_id
+        for konflikte in konflikte_je_person.values()
+        for konflikt in konflikte
+        for schicht_id in konflikt.schicht_ids
+    }
+
     zeilen = []
+    konflikt_uebersicht = []
     for person in mitarbeiter:
         zellen = []
         for tag in tage:
             schichten = sorted(belegung.get((person.id, tag), []), key=lambda s: s.beginn)
             zellen.append({"datum": tag, "ist_heute": tag == heute, "schichten": schichten})
-        zeilen.append({"person": person, "zellen": zellen})
+        konflikte = konflikte_je_person.get(person.id, [])
+        zeilen.append({"person": person, "zellen": zellen, "konflikte": konflikte})
+        if konflikte:
+            konflikt_uebersicht.append({"person": person, "konflikte": konflikte})
 
     kopf = [
         {
@@ -116,6 +137,9 @@ def wochengitter(betrieb: Betrieb, start: date, heute: date) -> dict:
         "zeilen": zeilen,
         "offen": offen,
         "hat_offene": any(spalte["schichten"] for spalte in offen),
+        "konflikte": konflikt_uebersicht,
+        "konflikt_schicht_ids": konflikt_schicht_ids,
+        "hat_konflikte": bool(konflikt_uebersicht),
         "vorwoche": start - timedelta(days=7),
         "naechste": start + timedelta(days=7),
     }

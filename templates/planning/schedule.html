@@ -10,6 +10,25 @@
 {% endblock %}
 {% block content %}
 {% if gitter.zeilen %}
+{% if gitter.hat_konflikte %}
+<div class="card card-warn">
+  <div class="card-head">
+    <span class="badge badge-warn"><span class="dot"></span>{{ gitter.konflikte|length }} Mitarbeiter mit Konflikten</span>
+  </div>
+  <ul class="konflikt-liste">
+    {% for eintrag in gitter.konflikte %}
+    {% for konflikt in eintrag.konflikte %}
+    <li>
+      {% if konflikt.art == "ueberlappung" %}<span class="badge badge-danger"><span class="dot"></span>Doppelbelegung</span>
+      {% elif konflikt.art == "ruhezeit" %}<span class="badge badge-warn"><span class="dot"></span>Ruhezeit</span>
+      {% else %}<span class="badge badge-warn"><span class="dot"></span>Wochenstunden</span>{% endif %}
+      <strong>{{ eintrag.person.voller_name }}</strong> — {{ konflikt.text }}
+    </li>
+    {% endfor %}
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
 <div class="card">
   <div class="schedule">
     <table class="sched">
@@ -26,13 +45,16 @@
         <tr>
           <td class="row-emp">
             <span class="color-dot" style="background:{{ zeile.person.farbe }}"></span>{{ zeile.person.voller_name }}
+            {% if zeile.konflikte %}<span class="badge badge-warn" title="{{ zeile.konflikte|length }} Konflikt(e)"><span class="dot"></span>{{ zeile.konflikte|length }}</span>{% endif %}
           </td>
           {% for zelle in zeile.zellen %}
           <td class="cell">
             {% for schicht in zelle.schichten %}
-            <span class="shift" style="border-left-color:{{ schicht.vorlage.farbe }}">
-              <span class="t">{{ schicht.beginn|time:"H:i" }}</span> {{ schicht.vorlage.name }}
-            </span>
+            {% if schicht.id in gitter.konflikt_schicht_ids %}
+            <span class="shift warn" title="Regelkonflikt"><span class="t">{{ schicht.beginn|time:"H:i" }}</span> {{ schicht.vorlage.name }}</span>
+            {% else %}
+            <span class="shift" style="border-left-color:{{ schicht.vorlage.farbe }}"><span class="t">{{ schicht.beginn|time:"H:i" }}</span> {{ schicht.vorlage.name }}</span>
+            {% endif %}
             {% endfor %}
             <a class="shift-add" href="{% url 'planning:einteilen_tag' zeile.person.pk zelle.datum|date:'Y-m-d' %}"
                title="{{ zeile.person.voller_name }} am {{ zelle.datum|date:'d.m.' }} einteilen">+</a>

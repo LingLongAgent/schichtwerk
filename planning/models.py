@@ -193,6 +193,24 @@ class Schicht(models.Model):
         return self.vorlage.dauer_stunden
 
     @property
+    def beginn_am(self) -> datetime:
+        """Beginn als konkreter Zeitpunkt (Datum + Uhrzeit der Vorlage)."""
+        return datetime.combine(self.datum, self.beginn)
+
+    @property
+    def ende_am(self) -> datetime:
+        """Ende als konkreter Zeitpunkt; bei Nachtschicht (Ende <= Beginn) am Folgetag.
+
+        Liefert zusammen mit ``beginn_am`` das Zeitfenster, an dem die
+        Regelprüfung (Überlappung/Ruhezeit) arbeitet. Wall-clock-Zeiten genügen,
+        da nur Differenzen innerhalb derselben lokalen Zeit verglichen werden.
+        """
+        ende = datetime.combine(self.datum, self.ende)
+        if self.ende <= self.beginn:
+            ende += timedelta(days=1)
+        return ende
+
+    @property
     def anzahl_zugewiesen(self) -> int:
         return self.zuweisungen.count()
 

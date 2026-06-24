@@ -128,6 +128,58 @@ class WochengitterTests(TestCase):
         self.assertFalse(zellen[0]["ist_heute"])
 
 
+class WochengitterKonfliktTests(TestCase):
+    """Das Gitter reicht die Arbeitszeit-Konflikte (M6) an die Oberfläche durch.
+
+    Die Regel-Logik selbst ist in ``tests_regeln`` erschöpfend geprüft; hier geht
+    es nur darum, dass ``wochengitter`` die Konflikte korrekt einsammelt, je
+    Zeile zuordnet und die betroffenen Schicht-IDs zum Hervorheben bereitstellt.
+    """
+
+    def setUp(self) -> None:
+        self.betrieb = BetriebFactory()
+        self.person = MitarbeiterFactory(betrieb=self.betrieb)
+
+    def _einteilen(self, datum: date, beginn: time, ende: time):
+        """``self.person`` an ``datum`` einer Schicht mit dem Zeitfenster zuweisen."""
+        vorlage = SchichtvorlageFactory(betrieb=self.betrieb, beginn=beginn, ende=ende)
+        schicht = SchichtFactory(vorlage=vorlage, datum=datum)
+        return ZuweisungFactory(schicht=schicht, mitarbeiter=self.person)
+
+    def test_konfliktfreie_woche_ohne_warnung(self) -> None:
+        self._einteilen(MONTAG, time(6, 0), time(14, 0))
+        gitter = services.wochengitter(self.betrieb, MONTAG, heute=MONTAG)
+        self.assertFalse(gitter["hat_konflikte"])
+        self.assertEqual(gitter["konflikte"], [])
+        self.assertEqual(gitter["konflikt_schicht_ids"], set())
+        self.assertEqual(gitter["zeilen"][0]["konflikte"], [])
+
+    def test_ruhezeitverstoss_erscheint_im_gitter(self) -> None:
+        # Spät Mo bis 22:00, Früh Di ab 06:00 -> nur 8 h Ruhe (< 11 h).
+        spaet = self._einteilen(MONTAG, time(14, 0), time(22, 0))
+        frueh = self._einteilen(date(2026, 6, 23), time(6, 0), time(14, 0))
+        gitter = services.wochengitter(self.betrieb, MONTAG, heute=MONTAG)
+        self.assertTrue(gitter["hat_konflikte"])
+        uebersicht = gitter["konflikte"]
+        self.assertEqual([e["person"] for e in uebersicht], [self.person])
+        self.assertEqual(uebersicht[0]["konflikte"][0].art, "ruhezeit")
+        # Beide beteiligten Schichten werden zum Hervorheben gemeldet.
+        self.assertEqual(
+            gitter["konflikt_schicht_ids"], {spaet.schicht_id, frueh.schicht_id}
+        )
+        # Die Zeile des Mitarbeiters trägt denselben Konflikt.
+        self.assertEqual(gitter["zeilen"][0]["konflikte"], uebersicht[0]["konflikte"])
+
+    def test_nur_betroffene_mitarbeiter_in_uebersicht(self) -> None:
+        ohne = MitarbeiterFactory(betrieb=self.betrieb)
+        vorlage = SchichtvorlageFactory(betrieb=self.betrieb, beginn=time(6, 0), ende=time(14, 0))
+        ZuweisungFactory(schicht=SchichtFactory(vorlage=vorlage, datum=MONTAG), mitarbeiter=ohne)
+        self._einteilen(MONTAG, time(14, 0), time(22, 0))
+        self._einteilen(date(2026, 6, 23), time(6, 0), time(14, 0))
+        gitter = services.wochengitter(self.betrieb, MONTAG, heute=MONTAG)
+        self.assertEqual([e["person"] for e in gitter["konflikte"]], [self.person])
+
+
 class DienstplanViewTests(TestCase):
     """Die View bindet Logik, Login-Schutz und Wochen-Navigation zusammen."""
 
@@ -158,3 +210,18 @@ class DienstplanViewTests(TestCase):
         self.client.force_login(self.user)
         antwort = self.client.get(self.url, {"start": "01.01.2026"})
         self.assertEqual(antwort.status_code, 200)
+
+    def test_konflikt_wird_in_der_warnkarte_angezeigt(self) -> None:
+        betrieb = services.aktueller_betrieb()
+        person = MitarbeiterFactory(betrieb=betrieb, vorname="Tom", nachname="Berg")
+        spaet = SchichtvorlageFactory(betrieb=betrieb, beginn=time(14, 0), ende=time(22, 0))
+        frueh = SchichtvorlageFactory(betrieb=betrieb, beginn=time(6, 0), ende=time(14, 0))
+        ZuweisungFactory(schicht=SchichtFactory(vorlage=spaet, datum=MONTAG), mitarbeiter=person)
+        ZuweisungFactory(
+            schicht=SchichtFactory(vorlage=frueh, datum=date(2026, 6, 23)), mitarbeiter=person
+        )
+        self.client.force_login(self.user)
+        antwort = self.client.get(self.url, {"start": MONTAG.isoformat()})
+        self.assertEqual(antwort.status_code, 200)
+        self.assertTrue(antwort.context["gitter"]["hat_konflikte"])
+        self.assertContains(antwort, "Ruhezeit")
