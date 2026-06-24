@@ -1,0 +1,9 @@
+# Laufzeit
+Django==5.1.15
+
+# Tests (Mockdaten)
+factory_boy==3.3.3
+Faker==40.23.0
+
+# Entwicklung (Linting)
+ruff==0.15.19

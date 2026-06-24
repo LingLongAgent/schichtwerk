@@ -40,7 +40,7 @@
       {% block topbar_actions %}{% endblock %}
     </header>
     <main class="content"><div class="content-inner">
-      {% if messages %}{% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}{% endif %}
+      {% if messages %}{% for m in messages %}<div class="flash flash-{{ m.tags }}">{{ m }}</div>{% endfor %}{% endif %}
       {% block content %}{% endblock %}
     </div></main>
   </div>

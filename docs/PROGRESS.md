@@ -4,6 +4,25 @@ Neueste oben.
 
 ## Done
 
+- **M12 · Politur & Produktionsreife** — Finaler Durchgang, der den Prototyp
+  vorzeigbar und betreibbar macht. **Niveau-gerechte Flash-Meldungen**: Das
+  Layout hängt die Django-Message-Tags als CSS-Klasse an (``flash-success`` /
+  ``flash-error`` / ``flash-warning``), sodass Erfolg grün und ein blockierter
+  Vorgang rot erscheint statt einheitlich neutral; passende Token-Stile im
+  Design-System. **Produktionsreife Settings**: ``SECRET_KEY``, ``DEBUG`` und
+  ``ALLOWED_HOSTS`` kommen aus der Umgebung (``DJANGO_*``) mit dev-tauglichen
+  Standardwerten — derselbe Code läuft ohne Änderung lokal und produktiv.
+  **``seed_demo``-Management-Befehl**: legt idempotent einen kompletten
+  Demo-Betrieb an (Login ``demo``/``demo12345``, 3 Abteilungen, 6 Mitarbeiter,
+  4 Schichtvorlagen, die laufende Woche Mo–Fr teilweise besetzt mit bewusst
+  offenen Schichten, plus eine Urlaubs-Abwesenheit) — ein zweiter Lauf erzeugt
+  keine Duplikate. **README** mit Schnellstart, Demo-Login, Test-/Lint-Gate und
+  Produktiv-Hinweisen; **requirements.txt** ergänzt. ``runserver`` startet sauber
+  (Login/Registrierung/Root je HTTP 200), ``manage.py check`` ohne Befund.
+  207 Tests grün (7 neu: seed_demo legt Betrieb/Login an, vollständiger
+  Datengraph, offene Schichten verbleiben, Idempotenz; Flash-Klasse für
+  Erfolg/Fehler/Basis), ruff sauber.
+
 - **M11 · Stundenübersicht + Export** — Neuer Nav-Punkt „Stunden": eine
   vollständige Stunden-Tabelle je Mitarbeiter über die Woche (Mo–So pro Tag,
   Wochensumme, Vertrag und Differenz mit +/‑-Markierung), plus Tagessummen

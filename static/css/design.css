@@ -159,7 +159,11 @@ button, input, select, textarea { font-family: inherit; }
 .field-hint { color: var(--ink-3); font-size: 12px; margin-top: 4px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
 .flash { background: var(--info-bg); color: var(--accent-ink); border: 1px solid var(--line);
-  border-radius: 8px; padding: 10px 13px; margin-bottom: 14px; font-size: 13px; }
+  border-left: 3px solid var(--accent); border-radius: 8px; padding: 10px 13px;
+  margin-bottom: 14px; font-size: 13px; }
+.flash-success { background: var(--ok-bg); color: var(--ok); border-color: var(--ok); }
+.flash-warning { background: var(--warn-bg); color: var(--warn); border-color: var(--warn); }
+.flash-error { background: var(--danger-bg); color: var(--danger); border-color: var(--danger); }
 
 /* ---- schedule grid (Dienstplan) ---- */
 .schedule { overflow-x: auto; }

@@ -24,7 +24,7 @@ Stack: Django + eigenes Produktions-Design (`static/css/design.css`).
 - [x] M9 (#9) · Dashboard (echt) — KPIs (Mitarbeiter, Schichten/Woche, offene Schichten, Konflikte), Stunden je Mitarbeiter, Wochenbesetzung. Tests.
 - [x] M10 (#10) · Registrierung + Onboarding — Betrieb + Login anlegen, erste Mitarbeiter/Schichten geführt. Tests.
 - [x] M11 (#11) · Stundenübersicht + Export — Stunden je Mitarbeiter/Woche, CSV-Export des Plans. Tests.
-- [ ] M12 (#12) · Politur & Produktionsreife — Validierung, Empty States, responsive, Konsistenz. Finaler Durchgang.
+- [x] M12 (#12) · Politur & Produktionsreife — Validierung, Empty States, responsive, Konsistenz. Finaler Durchgang.
 
 ## Done-Log
 Siehe `docs/PROGRESS.md`.
