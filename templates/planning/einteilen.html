@@ -1,0 +1,61 @@
+{% extends "main.html" %}
+{% block title %}Einteilen · {{ person.voller_name }} · Schichtwerk{% endblock %}
+{% block page_title %}{{ person.voller_name }} einteilen{% endblock %}
+{% block page_sub %}<div class="page-sub">{{ tag|date:"l, d.m.Y" }}</div>{% endblock %}
+{% block nav_schedule %}active{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-ghost btn-sm" href="{% url 'planning:schedule' %}?start={{ wochenstart|date:'Y-m-d' }}">Zurück zum Plan</a>
+{% endblock %}
+{% block content %}
+<div class="card card-pad">
+  <div class="section-head"><h2>Eingeteilte Schichten</h2>
+    <span class="badge badge-info"><span class="dot"></span>{{ zuweisungen|length }} an diesem Tag</span>
+  </div>
+  {% if zuweisungen %}
+  <table class="tbl">
+    <thead><tr><th>Schicht</th><th>Zeit</th><th></th></tr></thead>
+    <tbody>
+      {% for zuweisung in zuweisungen %}
+      <tr>
+        <td class="cell-strong">
+          <span class="color-dot" style="background:{{ zuweisung.schicht.vorlage.farbe }}"></span>{{ zuweisung.schicht.vorlage.name }}
+        </td>
+        <td class="tnum">{{ zuweisung.schicht.beginn|time:"H:i" }}–{{ zuweisung.schicht.ende|time:"H:i" }} Uhr</td>
+        <td class="num">
+          <form method="post" action="{% url 'planning:einteilung_entfernen' zuweisung.pk %}">
+            {% csrf_token %}
+            <button class="btn btn-ghost btn-sm" type="submit">Entfernen</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="field-hint">Noch keine Schicht an diesem Tag. Unten eine Vorlage auswählen, um {{ person.voller_name }} einzuteilen.</p>
+  {% endif %}
+</div>
+
+<div class="card card-pad" style="margin-top:16px">
+  <div class="section-head"><h2>Schicht hinzufügen</h2></div>
+  {% if verfuegbar %}
+  <form method="post" action="{% url 'planning:einteilung_hinzufuegen' person.pk tag|date:'Y-m-d' %}">
+    {% csrf_token %}
+    <div class="field">
+      <label class="field-label" for="vorlage">Schichtvorlage</label>
+      <select class="input" id="vorlage" name="vorlage" required>
+        {% for vorlage in verfuegbar %}
+        <option value="{{ vorlage.pk }}">{{ vorlage.name }} · {{ vorlage.beginn|time:"H:i" }}–{{ vorlage.ende|time:"H:i" }} Uhr</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn btn-primary btn-sm" type="submit">Einteilen</button>
+  </form>
+  {% else %}
+  <p class="field-hint">
+    Alle vorhandenen Vorlagen sind an diesem Tag bereits zugewiesen.
+    Neue Zeitschemata legst du unter <a href="{% url 'planning:vorlage_neu' %}">Schichtvorlagen</a> an.
+  </p>
+  {% endif %}
+</div>
+{% endblock %}

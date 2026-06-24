@@ -7,17 +7,32 @@ auf dem Produktions-Design.
 
 from __future__ import annotations
 
+from datetime import date
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import HttpRequest, HttpResponse
+from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from . import services
 from .forms import MitarbeiterForm, SchichtvorlageForm
-from .models import Mitarbeiter, Schichtvorlage
+from .models import Mitarbeiter, Schichtvorlage, Zuweisung
 from .services import aktueller_betrieb
+
+
+def _datum_aus_pfad(roh: str) -> date:
+    """Ein ISO-Datum aus dem URL-Pfad lesen; bei Unsinn eine 404 auslösen.
+
+    Anders als bei der Wochen-Navigation (die still auf die aktuelle Woche
+    zurückfällt) ist ein kaputtes Datum hier ein echter „nicht gefunden"-Fall:
+    Die Einteilen-Seite bezieht sich auf genau einen Tag.
+    """
+    try:
+        return date.fromisoformat(roh)
+    except ValueError as fehler:
+        raise Http404("Ungültiges Datum.") from fehler
 
 
 @login_required
@@ -25,13 +40,63 @@ def schedule(request: HttpRequest) -> HttpResponse:
     """Dienstplan-Wochengitter — Mitarbeiter × Wochentage mit Wochen-Navigation.
 
     Die anzuzeigende Woche kommt aus dem Query-Parameter ``start`` (ISO-Datum);
-    ohne ihn wird die laufende Woche gezeigt. Das Einteilen selbst folgt in M5.
+    ohne ihn wird die laufende Woche gezeigt. Aus jeder Zelle führt ein Link zum
+    Einteilen (M5); offene Schichten erscheinen in einer eigenen Tagesspur.
     """
     betrieb = aktueller_betrieb()
     heute = timezone.localdate()
     start = services.parse_wochenstart(request.GET.get("start"), heute)
     gitter = services.wochengitter(betrieb, start, heute)
     return render(request, "planning/schedule.html", {"gitter": gitter, "heute": heute})
+
+
+@login_required
+def einteilen_tag(request: HttpRequest, pk: int, datum: str) -> HttpResponse:
+    """Einteilen-Seite: einen Mitarbeiter an einem Tag Schichten zuweisen/entfernen."""
+    betrieb = aktueller_betrieb()
+    person = get_object_or_404(Mitarbeiter, pk=pk, betrieb=betrieb)
+    tag = _datum_aus_pfad(datum)
+    daten = services.tageszuteilung(betrieb, person, tag)
+    return render(
+        request,
+        "planning/einteilen.html",
+        {
+            "person": person,
+            "tag": tag,
+            "wochenstart": services.wochenstart(tag),
+            "zuweisungen": daten["zuweisungen"],
+            "verfuegbar": daten["verfuegbar"],
+        },
+    )
+
+
+@login_required
+@require_POST
+def einteilung_hinzufuegen(request: HttpRequest, pk: int, datum: str) -> HttpResponse:
+    """Den Mitarbeiter der gewählten Vorlage am Tag zuweisen (Schicht entsteht dabei)."""
+    betrieb = aktueller_betrieb()
+    person = get_object_or_404(Mitarbeiter, pk=pk, betrieb=betrieb)
+    tag = _datum_aus_pfad(datum)
+    vorlage = get_object_or_404(Schichtvorlage, pk=request.POST.get("vorlage"), betrieb=betrieb)
+    services.einteilen(person, vorlage, tag)
+    messages.success(
+        request, f"{person.voller_name} für „{vorlage.name}“ am {tag:%d.%m.%Y} eingeteilt."
+    )
+    return redirect("planning:einteilen_tag", pk=person.pk, datum=tag.isoformat())
+
+
+@login_required
+@require_POST
+def einteilung_entfernen(request: HttpRequest, pk: int) -> HttpResponse:
+    """Eine Zuweisung wieder entfernen; zurück zur Einteilen-Seite des Tages."""
+    betrieb = aktueller_betrieb()
+    zuweisung = get_object_or_404(Zuweisung, pk=pk, mitarbeiter__betrieb=betrieb)
+    person = zuweisung.mitarbeiter
+    tag = zuweisung.schicht.datum
+    name = zuweisung.schicht.vorlage.name
+    zuweisung.delete()
+    messages.success(request, f"Einteilung „{name}“ entfernt.")
+    return redirect("planning:einteilen_tag", pk=person.pk, datum=tag.isoformat())
 
 
 @login_required

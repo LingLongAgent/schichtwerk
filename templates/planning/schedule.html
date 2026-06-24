@@ -34,11 +34,29 @@
               <span class="t">{{ schicht.beginn|time:"H:i" }}</span> {{ schicht.vorlage.name }}
             </span>
             {% endfor %}
+            <a class="shift-add" href="{% url 'planning:einteilen_tag' zeile.person.pk zelle.datum|date:'Y-m-d' %}"
+               title="{{ zeile.person.voller_name }} am {{ zelle.datum|date:'d.m.' }} einteilen">+</a>
           </td>
           {% endfor %}
         </tr>
         {% endfor %}
       </tbody>
+      {% if gitter.hat_offene %}
+      <tfoot>
+        <tr>
+          <td class="row-emp">Offene Schichten</td>
+          {% for spalte in gitter.offen %}
+          <td class="cell">
+            {% for schicht in spalte.schichten %}
+            <span class="shift open" style="border-left-color:{{ schicht.vorlage.farbe }}">
+              <span class="t">{{ schicht.beginn|time:"H:i" }}</span> {{ schicht.vorlage.name }}
+            </span>
+            {% endfor %}
+          </td>
+          {% endfor %}
+        </tr>
+      </tfoot>
+      {% endif %}
     </table>
   </div>
 </div>

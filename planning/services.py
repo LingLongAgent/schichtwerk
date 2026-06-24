@@ -16,7 +16,9 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date, timedelta
 
-from .models import Betrieb, Schicht, Zuweisung
+from django.db.models import Count
+
+from .models import Betrieb, Mitarbeiter, Schicht, Schichtvorlage, Zuweisung
 
 STANDARD_BETRIEB_NAME = "Mein Betrieb"
 
@@ -29,8 +31,10 @@ def aktueller_betrieb() -> Betrieb:
 
     Existiert noch keiner (frische Installation), wird ein Standard-Betrieb
     angelegt, damit die Ansichten ohne vorheriges Onboarding nutzbar sind.
+    Maßgeblich ist der zuerst angelegte Betrieb (nach ``id``), damit die Auswahl
+    stabil bleibt und nicht von der alphabetischen Standard-Sortierung abhängt.
     """
-    betrieb = Betrieb.objects.first()
+    betrieb = Betrieb.objects.order_by("id").first()
     if betrieb is None:
         betrieb = Betrieb.objects.create(name=STANDARD_BETRIEB_NAME)
     return betrieb
@@ -100,11 +104,72 @@ def wochengitter(betrieb: Betrieb, start: date, heute: date) -> dict:
         }
         for index, tag in enumerate(tage)
     ]
+    offen_je_tag = offene_schichten_je_tag(betrieb, tage)
+    offen = [
+        {"datum": tag, "ist_heute": tag == heute, "schichten": offen_je_tag.get(tag, [])}
+        for tag in tage
+    ]
     return {
         "start": start,
         "ende": tage[-1],
         "kopf": kopf,
         "zeilen": zeilen,
+        "offen": offen,
+        "hat_offene": any(spalte["schichten"] for spalte in offen),
         "vorwoche": start - timedelta(days=7),
         "naechste": start + timedelta(days=7),
     }
+
+
+def offene_schichten_je_tag(betrieb: Betrieb, tage: list[date]) -> dict[date, list[Schicht]]:
+    """Unterbesetzte Schichten der Woche, je Tag und nach Beginn sortiert.
+
+    „Offen" heißt: weniger Zuweisungen als ``bedarf`` — die Schicht braucht noch
+    Personal. Die Zuweisungszahl wird per ``Count`` mitannotiert, damit der
+    Offen-Status ohne eine Zusatzabfrage je Schicht (N+1) bestimmt werden kann.
+    Nur Schichten des Betriebs im Wochenfenster werden betrachtet.
+    """
+    schichten = (
+        Schicht.objects.filter(vorlage__betrieb=betrieb, datum__range=(tage[0], tage[-1]))
+        .select_related("vorlage")
+        .annotate(anzahl_zuweisungen=Count("zuweisungen"))
+    )
+    je_tag: dict[date, list[Schicht]] = defaultdict(list)
+    for schicht in schichten:
+        if schicht.anzahl_zuweisungen < schicht.bedarf:
+            je_tag[schicht.datum].append(schicht)
+    for schichten_am_tag in je_tag.values():
+        schichten_am_tag.sort(key=lambda s: s.beginn)
+    return dict(je_tag)
+
+
+def einteilen(person: Mitarbeiter, vorlage: Schichtvorlage, datum: date) -> Zuweisung:
+    """Einen Mitarbeiter der Schicht ``vorlage`` am ``datum`` zuweisen — idempotent.
+
+    Die konkrete Tagesschicht wird bei Bedarf angelegt (eine Vorlage wird erst
+    durch das Einteilen an einem Tag zur planbaren Schicht). Eine bereits
+    bestehende Zuweisung wird unverändert zurückgegeben, sodass mehrfaches
+    Einteilen keine Doubletten erzeugt.
+    """
+    schicht, _ = Schicht.objects.get_or_create(vorlage=vorlage, datum=datum)
+    zuweisung, _ = Zuweisung.objects.get_or_create(schicht=schicht, mitarbeiter=person)
+    return zuweisung
+
+
+def tageszuteilung(betrieb: Betrieb, person: Mitarbeiter, datum: date) -> dict:
+    """Daten für die Einteilen-Seite eines Mitarbeiters an einem Tag.
+
+    Liefert die bestehenden Zuweisungen dieses Tages sowie die Vorlagen, für die
+    noch keine Zuweisung besteht (die also noch hinzugefügt werden können). So
+    lässt sich jede Schicht je Tag höchstens einmal einteilen.
+    """
+    zuweisungen = list(
+        Zuweisung.objects.filter(
+            mitarbeiter=person,
+            schicht__datum=datum,
+            schicht__vorlage__betrieb=betrieb,
+        ).select_related("schicht__vorlage")
+    )
+    belegte_vorlagen = {zuweisung.schicht.vorlage_id for zuweisung in zuweisungen}
+    verfuegbar = betrieb.schichtvorlagen.exclude(id__in=belegte_vorlagen)
+    return {"zuweisungen": zuweisungen, "verfuegbar": verfuegbar}

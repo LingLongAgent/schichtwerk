@@ -5,6 +5,21 @@ from . import views
 app_name = "planning"
 urlpatterns = [
     path("dienstplan/", views.schedule, name="schedule"),
+    path(
+        "dienstplan/einteilen/<int:pk>/<str:datum>/",
+        views.einteilen_tag,
+        name="einteilen_tag",
+    ),
+    path(
+        "dienstplan/einteilen/<int:pk>/<str:datum>/hinzufuegen/",
+        views.einteilung_hinzufuegen,
+        name="einteilung_hinzufuegen",
+    ),
+    path(
+        "dienstplan/zuweisung/<int:pk>/entfernen/",
+        views.einteilung_entfernen,
+        name="einteilung_entfernen",
+    ),
     path("mitarbeiter/", views.mitarbeiter_liste, name="mitarbeiter_liste"),
     path("mitarbeiter/neu/", views.mitarbeiter_neu, name="mitarbeiter_neu"),
     path("mitarbeiter/<int:pk>/", views.mitarbeiter_detail, name="mitarbeiter_detail"),
