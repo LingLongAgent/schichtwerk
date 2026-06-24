@@ -13,7 +13,7 @@ So lassen sich Zeiten zentral pflegen und Schichten je Tag besetzen.
 
 from __future__ import annotations
 
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 
 from django.db import models
 
@@ -247,6 +247,65 @@ class Zuweisung(models.Model):
 
     def __str__(self) -> str:
         return f"{self.mitarbeiter.voller_name} → {self.schicht}"
+
+
+class Abwesenheit(models.Model):
+    """Ein Zeitraum, in dem ein Mitarbeiter nicht einplanbar ist (Urlaub/Krank).
+
+    Der Zeitraum ist **inklusive** zu verstehen: ``von`` und ``bis`` zählen beide
+    als abwesend (ein eintägiger Urlaub hat ``von == bis``). Eine Abwesenheit
+    blockiert das Einteilen an den betroffenen Tagen (siehe ``services.einteilen``)
+    und wird im Wochengitter sichtbar gemacht.
+    """
+
+    URLAUB = "urlaub"
+    KRANK = "krank"
+    SONSTIGES = "sonstiges"
+    ART_AUSWAHL = [
+        (URLAUB, "Urlaub"),
+        (KRANK, "Krank"),
+        (SONSTIGES, "Sonstiges"),
+    ]
+
+    mitarbeiter = models.ForeignKey(
+        Mitarbeiter,
+        on_delete=models.CASCADE,
+        related_name="abwesenheiten",
+        verbose_name="Mitarbeiter",
+    )
+    art = models.CharField("Art", max_length=20, choices=ART_AUSWAHL, default=URLAUB)
+    von = models.DateField("Von")
+    bis = models.DateField("Bis")
+    notiz = models.CharField("Notiz", max_length=200, blank=True)
+    erstellt_am = models.DateTimeField("Erstellt am", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Abwesenheit"
+        verbose_name_plural = "Abwesenheiten"
+        ordering = ["-von"]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(bis__gte=models.F("von")),
+                name="abwesenheit_bis_nicht_vor_von",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.art_anzeige}: {self.von:%d.%m.%Y}–{self.bis:%d.%m.%Y}"
+
+    @property
+    def art_anzeige(self) -> str:
+        """Lesbarer Name der Abwesenheitsart (z. B. „Urlaub")."""
+        return self.get_art_display()
+
+    @property
+    def tage(self) -> int:
+        """Anzahl der abgedeckten Kalendertage (inklusive Start- und Endtag)."""
+        return (self.bis - self.von).days + 1
+
+    def umfasst(self, datum: date) -> bool:
+        """True, wenn ``datum`` in den (inklusiven) Abwesenheitszeitraum fällt."""
+        return self.von <= datum <= self.bis
 
 
 def _stunden_zwischen(beginn: time, ende: time) -> float:

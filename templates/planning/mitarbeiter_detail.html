@@ -22,4 +22,66 @@
     </tbody>
   </table>
 </div>
+
+<div class="card card-pad" style="margin-top:16px">
+  <div class="section-head"><h2>Abwesenheiten</h2>
+    <span class="badge badge-info"><span class="dot"></span>{{ abwesenheiten|length }} erfasst</span>
+  </div>
+  {% if abwesenheiten %}
+  <table class="tbl">
+    <thead><tr><th>Art</th><th>Zeitraum</th><th class="num">Tage</th><th>Notiz</th><th></th></tr></thead>
+    <tbody>
+      {% for abwesenheit in abwesenheiten %}
+      <tr>
+        <td class="cell-strong">
+          {% if abwesenheit.art == "urlaub" %}<span class="badge badge-info"><span class="dot"></span>Urlaub</span>
+          {% elif abwesenheit.art == "krank" %}<span class="badge badge-warn"><span class="dot"></span>Krank</span>
+          {% else %}<span class="badge badge-muted"><span class="dot"></span>Sonstiges</span>{% endif %}
+        </td>
+        <td class="tnum">{{ abwesenheit.von|date:"d.m.Y" }} – {{ abwesenheit.bis|date:"d.m.Y" }}</td>
+        <td class="num tnum">{{ abwesenheit.tage }}</td>
+        <td>{{ abwesenheit.notiz|default:"—" }}</td>
+        <td class="num">
+          <form method="post" action="{% url 'planning:abwesenheit_entfernen' abwesenheit.pk %}">
+            {% csrf_token %}
+            <button class="btn btn-ghost btn-sm" type="submit">Entfernen</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="field-hint">Keine Abwesenheiten erfasst. Urlaub oder Krankheit unten eintragen — verplante Tage werden dann im Dienstplan gesperrt.</p>
+  {% endif %}
+
+  <form method="post" action="{% url 'planning:abwesenheit_hinzufuegen' person.pk %}" style="margin-top:16px">
+    {% csrf_token %}
+    {% if abwesenheit_form.non_field_errors %}
+    <div class="field-error">{{ abwesenheit_form.non_field_errors|join:" " }}</div>
+    {% endif %}
+    <div class="form-grid">
+      <div class="field">
+        <label class="field-label" for="{{ abwesenheit_form.art.id_for_label }}">Art</label>
+        {{ abwesenheit_form.art }}
+        {% if abwesenheit_form.art.errors %}<div class="field-error">{{ abwesenheit_form.art.errors|join:" " }}</div>{% endif %}
+      </div>
+      <div class="field">
+        <label class="field-label" for="{{ abwesenheit_form.notiz.id_for_label }}">Notiz</label>
+        {{ abwesenheit_form.notiz }}
+      </div>
+      <div class="field">
+        <label class="field-label" for="{{ abwesenheit_form.von.id_for_label }}">Von</label>
+        {{ abwesenheit_form.von }}
+        {% if abwesenheit_form.von.errors %}<div class="field-error">{{ abwesenheit_form.von.errors|join:" " }}</div>{% endif %}
+      </div>
+      <div class="field">
+        <label class="field-label" for="{{ abwesenheit_form.bis.id_for_label }}">Bis</label>
+        {{ abwesenheit_form.bis }}
+        {% if abwesenheit_form.bis.errors %}<div class="field-error">{{ abwesenheit_form.bis.errors|join:" " }}</div>{% endif %}
+      </div>
+    </div>
+    <button class="btn btn-primary btn-sm" type="submit">Abwesenheit eintragen</button>
+  </form>
+</div>
 {% endblock %}

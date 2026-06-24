@@ -4,7 +4,15 @@ from __future__ import annotations
 
 from django.contrib import admin
 
-from .models import Abteilung, Betrieb, Mitarbeiter, Schicht, Schichtvorlage, Zuweisung
+from .models import (
+    Abteilung,
+    Abwesenheit,
+    Betrieb,
+    Mitarbeiter,
+    Schicht,
+    Schichtvorlage,
+    Zuweisung,
+)
 
 
 @admin.register(Betrieb)
@@ -45,3 +53,10 @@ class SchichtAdmin(admin.ModelAdmin):
 class ZuweisungAdmin(admin.ModelAdmin):
     list_display = ["mitarbeiter", "schicht", "erstellt_am"]
     list_filter = ["schicht__datum"]
+
+
+@admin.register(Abwesenheit)
+class AbwesenheitAdmin(admin.ModelAdmin):
+    list_display = ["mitarbeiter", "art", "von", "bis", "tage"]
+    list_filter = ["art", "mitarbeiter__betrieb"]
+    date_hierarchy = "von"

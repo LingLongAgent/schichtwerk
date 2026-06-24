@@ -49,6 +49,9 @@
           </td>
           {% for zelle in zeile.zellen %}
           <td class="cell">
+            {% if zelle.abwesenheit %}
+            <span class="shift abw" title="{{ zelle.abwesenheit.art_anzeige }}">{{ zelle.abwesenheit.art_anzeige }}</span>
+            {% endif %}
             {% for schicht in zelle.schichten %}
             {% if schicht.id in gitter.konflikt_schicht_ids %}
             <span class="shift warn" title="Regelkonflikt"><span class="t">{{ schicht.beginn|time:"H:i" }}</span> {{ schicht.vorlage.name }}</span>
@@ -56,8 +59,10 @@
             <span class="shift" style="border-left-color:{{ schicht.vorlage.farbe }}"><span class="t">{{ schicht.beginn|time:"H:i" }}</span> {{ schicht.vorlage.name }}</span>
             {% endif %}
             {% endfor %}
+            {% if not zelle.abwesenheit %}
             <a class="shift-add" href="{% url 'planning:einteilen_tag' zeile.person.pk zelle.datum|date:'Y-m-d' %}"
                title="{{ zeile.person.voller_name }} am {{ zelle.datum|date:'d.m.' }} einteilen">+</a>
+            {% endif %}
           </td>
           {% endfor %}
         </tr>

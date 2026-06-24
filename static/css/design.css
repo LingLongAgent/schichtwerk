@@ -173,6 +173,8 @@ button, input, select, textarea { font-family: inherit; }
 .shift .t { font-weight: 700; }
 .shift.warn { background: var(--warn-bg); color: var(--warn); border-left-color: var(--warn); }
 .shift.open { background: var(--muted-bg); color: var(--ink-2); border-left-color: var(--ink-3); border-style: dashed; }
+.shift.abw { background: var(--muted-bg); color: var(--ink-2); border-left-color: var(--ink-3);
+  font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: .03em; }
 .shift-add { display: block; text-align: center; color: var(--ink-3); font-size: 12px; border: 1px dashed var(--line-2);
   border-radius: 7px; padding: 4px; cursor: pointer; }
 .shift-add:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }

@@ -28,6 +28,16 @@ urlpatterns = [
         views.mitarbeiter_bearbeiten,
         name="mitarbeiter_bearbeiten",
     ),
+    path(
+        "mitarbeiter/<int:pk>/abwesenheit/",
+        views.abwesenheit_hinzufuegen,
+        name="abwesenheit_hinzufuegen",
+    ),
+    path(
+        "abwesenheit/<int:pk>/entfernen/",
+        views.abwesenheit_entfernen,
+        name="abwesenheit_entfernen",
+    ),
     path("vorlagen/", views.vorlage_liste, name="vorlage_liste"),
     path("vorlagen/neu/", views.vorlage_neu, name="vorlage_neu"),
     path("vorlagen/<int:pk>/", views.vorlage_detail, name="vorlage_detail"),

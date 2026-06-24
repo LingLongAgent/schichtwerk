@@ -7,6 +7,17 @@
 <a class="btn btn-ghost btn-sm" href="{% url 'planning:schedule' %}?start={{ wochenstart|date:'Y-m-d' }}">Zurück zum Plan</a>
 {% endblock %}
 {% block content %}
+{% if abwesenheit %}
+<div class="card card-warn">
+  <div class="card-head">
+    <span class="badge badge-warn"><span class="dot"></span>Abwesend</span>
+  </div>
+  <ul class="konflikt-liste">
+    <li><strong>{{ person.voller_name }}</strong> ist an diesem Tag abwesend
+      ({{ abwesenheit.art_anzeige }}) und kann nicht eingeteilt werden.</li>
+  </ul>
+</div>
+{% endif %}
 <div class="card card-pad">
   <div class="section-head"><h2>Eingeteilte Schichten</h2>
     <span class="badge badge-info"><span class="dot"></span>{{ zuweisungen|length }} an diesem Tag</span>
@@ -38,7 +49,9 @@
 
 <div class="card card-pad" style="margin-top:16px">
   <div class="section-head"><h2>Schicht hinzufügen</h2></div>
-  {% if verfuegbar %}
+  {% if abwesenheit %}
+  <p class="field-hint">Einteilen ist gesperrt, solange für diesen Tag eine Abwesenheit ({{ abwesenheit.art_anzeige }}) erfasst ist.</p>
+  {% elif verfuegbar %}
   <form method="post" action="{% url 'planning:einteilung_hinzufuegen' person.pk tag|date:'Y-m-d' %}">
     {% csrf_token %}
     <div class="field">

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from django import forms
 
-from .models import Abteilung, Betrieb, Mitarbeiter, Schichtvorlage
+from .models import Abteilung, Abwesenheit, Betrieb, Mitarbeiter, Schichtvorlage
 
 
 class MitarbeiterForm(forms.ModelForm):
@@ -80,3 +80,40 @@ class SchichtvorlageForm(forms.ModelForm):
         if commit:
             vorlage.save()
         return vorlage
+
+
+class AbwesenheitForm(forms.ModelForm):
+    """Eine Abwesenheit (Urlaub/Krank) für einen Mitarbeiter erfassen.
+
+    Der Mitarbeiter wird nicht im Formular gewählt, sondern beim Speichern aus
+    dem Seitenkontext gesetzt. Ein Enddatum vor dem Beginn ist unzulässig und
+    wird vor dem Speichern abgewiesen, passend zur DB-Bedingung am Modell.
+    """
+
+    class Meta:
+        model = Abwesenheit
+        fields = ["art", "von", "bis", "notiz"]
+        widgets = {
+            "von": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+            "bis": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+        }
+
+    def __init__(self, *args: object, mitarbeiter: Mitarbeiter, **kwargs: object) -> None:
+        super().__init__(*args, **kwargs)
+        self.mitarbeiter = mitarbeiter
+        self.fields["notiz"].widget.attrs["placeholder"] = "optional"
+
+    def clean(self) -> dict[str, object]:
+        bereinigt = super().clean()
+        von = bereinigt.get("von")
+        bis = bereinigt.get("bis")
+        if von is not None and bis is not None and bis < von:
+            raise forms.ValidationError("Das Bis-Datum darf nicht vor dem Von-Datum liegen.")
+        return bereinigt
+
+    def save(self, commit: bool = True) -> Abwesenheit:
+        abwesenheit: Abwesenheit = super().save(commit=False)
+        abwesenheit.mitarbeiter = self.mitarbeiter
+        if commit:
+            abwesenheit.save()
+        return abwesenheit

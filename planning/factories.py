@@ -8,12 +8,20 @@ einen Betrieb samt Vorlage erzeugt.
 
 from __future__ import annotations
 
-from datetime import time
+from datetime import date, time
 
 import factory
 from factory.django import DjangoModelFactory
 
-from .models import Abteilung, Betrieb, Mitarbeiter, Schicht, Schichtvorlage, Zuweisung
+from .models import (
+    Abteilung,
+    Abwesenheit,
+    Betrieb,
+    Mitarbeiter,
+    Schicht,
+    Schichtvorlage,
+    Zuweisung,
+)
 
 
 class BetriebFactory(DjangoModelFactory):
@@ -69,3 +77,13 @@ class ZuweisungFactory(DjangoModelFactory):
 
     schicht = factory.SubFactory(SchichtFactory)
     mitarbeiter = factory.SubFactory(MitarbeiterFactory)
+
+
+class AbwesenheitFactory(DjangoModelFactory):
+    class Meta:
+        model = Abwesenheit
+
+    mitarbeiter = factory.SubFactory(MitarbeiterFactory)
+    art = Abwesenheit.URLAUB
+    von = date(2026, 6, 22)
+    bis = date(2026, 6, 26)

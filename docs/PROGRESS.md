@@ -4,6 +4,19 @@ Neueste oben.
 
 ## Done
 
+- **M7 · Abwesenheiten/Urlaub** — Neues Modell ``Abwesenheit`` (Mitarbeiter, Art
+  Urlaub/Krank/Sonstiges, inklusiver Zeitraum ``von``–``bis``, Notiz) mit
+  DB-CheckConstraint ``bis >= von`` und ``umfasst(datum)``. Die Service-Funktion
+  ``ist_abwesend`` prüft den Tag; ``einteilen`` weist eine Zuweisung an einem
+  Abwesenheitstag mit der neuen Ausnahme ``EinteilenBlockiert`` ab (die View fängt
+  sie und zeigt eine Fehlermeldung statt einer ungültigen Einteilung). Das
+  Wochengitter trägt je Tageszelle die betreffende Abwesenheit (eine Sammelabfrage
+  ``abwesenheiten_je_woche`` statt N+1); im Gitter erscheint ein ``.shift.abw``-Chip
+  und der Einteilen-Knopf entfällt an gesperrten Tagen. Erfassen/Entfernen erfolgt
+  auf der Mitarbeiter-Detailseite (``AbwesenheitForm`` mit Datums-Validierung,
+  POST-only, auf den Betrieb gescoped). Admin registriert. 125 Tests grün (24 neu:
+  Modell/Grenzfälle, Service-Blockade, Gitter, Formular, Views), ruff sauber.
+
 - **M6 · Arbeitszeit-Regeln & Konflikte** — Drei reine Prüffunktionen über
   ``Schichtzeit``-Werte (ohne DB/HTTP, am ArbZG orientiert): Doppelbelegung
   (Überlappung), Ruhezeit < 11 h zwischen Folgeschichten und Wochenhöchststunden

@@ -17,9 +17,9 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from . import services
-from .forms import MitarbeiterForm, SchichtvorlageForm
-from .models import Mitarbeiter, Schichtvorlage, Zuweisung
-from .services import aktueller_betrieb
+from .forms import AbwesenheitForm, MitarbeiterForm, SchichtvorlageForm
+from .models import Abwesenheit, Mitarbeiter, Schichtvorlage, Zuweisung
+from .services import EinteilenBlockiert, aktueller_betrieb
 
 
 def _datum_aus_pfad(roh: str) -> date:
@@ -66,6 +66,7 @@ def einteilen_tag(request: HttpRequest, pk: int, datum: str) -> HttpResponse:
             "wochenstart": services.wochenstart(tag),
             "zuweisungen": daten["zuweisungen"],
             "verfuegbar": daten["verfuegbar"],
+            "abwesenheit": services.ist_abwesend(person, tag),
         },
     )
 
@@ -78,10 +79,14 @@ def einteilung_hinzufuegen(request: HttpRequest, pk: int, datum: str) -> HttpRes
     person = get_object_or_404(Mitarbeiter, pk=pk, betrieb=betrieb)
     tag = _datum_aus_pfad(datum)
     vorlage = get_object_or_404(Schichtvorlage, pk=request.POST.get("vorlage"), betrieb=betrieb)
-    services.einteilen(person, vorlage, tag)
-    messages.success(
-        request, f"{person.voller_name} für „{vorlage.name}“ am {tag:%d.%m.%Y} eingeteilt."
-    )
+    try:
+        services.einteilen(person, vorlage, tag)
+    except EinteilenBlockiert as blockiert:
+        messages.error(request, str(blockiert))
+    else:
+        messages.success(
+            request, f"{person.voller_name} für „{vorlage.name}“ am {tag:%d.%m.%Y} eingeteilt."
+        )
     return redirect("planning:einteilen_tag", pk=person.pk, datum=tag.isoformat())
 
 
@@ -113,10 +118,53 @@ def mitarbeiter_liste(request: HttpRequest) -> HttpResponse:
 
 @login_required
 def mitarbeiter_detail(request: HttpRequest, pk: int) -> HttpResponse:
-    """Einzelansicht eines Mitarbeiters mit Stammdaten."""
+    """Einzelansicht eines Mitarbeiters mit Stammdaten und Abwesenheiten."""
     betrieb = aktueller_betrieb()
     person = get_object_or_404(Mitarbeiter, pk=pk, betrieb=betrieb)
-    return render(request, "planning/mitarbeiter_detail.html", {"person": person})
+    return render(
+        request,
+        "planning/mitarbeiter_detail.html",
+        {
+            "person": person,
+            "abwesenheiten": person.abwesenheiten.all(),
+            "abwesenheit_form": AbwesenheitForm(mitarbeiter=person),
+        },
+    )
+
+
+@login_required
+@require_POST
+def abwesenheit_hinzufuegen(request: HttpRequest, pk: int) -> HttpResponse:
+    """Eine Abwesenheit (Urlaub/Krank) für den Mitarbeiter erfassen."""
+    betrieb = aktueller_betrieb()
+    person = get_object_or_404(Mitarbeiter, pk=pk, betrieb=betrieb)
+    form = AbwesenheitForm(request.POST, mitarbeiter=person)
+    if form.is_valid():
+        form.save()
+        messages.success(request, f"Abwesenheit für {person.voller_name} eingetragen.")
+        return redirect("planning:mitarbeiter_detail", pk=person.pk)
+    # Bei ungültiger Eingabe die Detailseite mit Fehlermeldungen erneut zeigen.
+    return render(
+        request,
+        "planning/mitarbeiter_detail.html",
+        {
+            "person": person,
+            "abwesenheiten": person.abwesenheiten.all(),
+            "abwesenheit_form": form,
+        },
+    )
+
+
+@login_required
+@require_POST
+def abwesenheit_entfernen(request: HttpRequest, pk: int) -> HttpResponse:
+    """Eine Abwesenheit wieder löschen; zurück zur Mitarbeiter-Detailseite."""
+    betrieb = aktueller_betrieb()
+    abwesenheit = get_object_or_404(Abwesenheit, pk=pk, mitarbeiter__betrieb=betrieb)
+    person = abwesenheit.mitarbeiter
+    abwesenheit.delete()
+    messages.success(request, "Abwesenheit entfernt.")
+    return redirect("planning:mitarbeiter_detail", pk=person.pk)
 
 
 @login_required

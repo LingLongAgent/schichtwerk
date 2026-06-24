@@ -19,9 +19,18 @@ from datetime import date, timedelta
 from django.db.models import Count
 
 from . import regeln
-from .models import Betrieb, Mitarbeiter, Schicht, Schichtvorlage, Zuweisung
+from .models import Abwesenheit, Betrieb, Mitarbeiter, Schicht, Schichtvorlage, Zuweisung
 
 STANDARD_BETRIEB_NAME = "Mein Betrieb"
+
+
+class EinteilenBlockiert(Exception):
+    """Eine Zuweisung ist fachlich nicht möglich (z. B. Abwesenheit am Tag).
+
+    Wird von ``einteilen`` ausgelöst und in der View abgefangen, um dem Planer
+    eine verständliche Meldung zu zeigen, statt eine ungültige Einteilung
+    anzulegen.
+    """
 
 # Wochentags-Kürzel Mo–So für die Gitter-Kopfzeile (Index = date.weekday()).
 WOCHENTAG_KUERZEL = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
@@ -104,13 +113,24 @@ def wochengitter(betrieb: Betrieb, start: date, heute: date) -> dict:
         for schicht_id in konflikt.schicht_ids
     }
 
+    # Abwesenheiten der Woche je (Mitarbeiter, Tag), damit die Zelle „Urlaub/Krank"
+    # anzeigen und das Einteilen an diesen Tagen unterdrücken kann (M7).
+    abwesend = abwesenheiten_je_woche(betrieb, tage)
+
     zeilen = []
     konflikt_uebersicht = []
     for person in mitarbeiter:
         zellen = []
         for tag in tage:
             schichten = sorted(belegung.get((person.id, tag), []), key=lambda s: s.beginn)
-            zellen.append({"datum": tag, "ist_heute": tag == heute, "schichten": schichten})
+            zellen.append(
+                {
+                    "datum": tag,
+                    "ist_heute": tag == heute,
+                    "schichten": schichten,
+                    "abwesenheit": abwesend.get((person.id, tag)),
+                }
+            )
         konflikte = konflikte_je_person.get(person.id, [])
         zeilen.append({"person": person, "zellen": zellen, "konflikte": konflikte})
         if konflikte:
@@ -167,6 +187,16 @@ def offene_schichten_je_tag(betrieb: Betrieb, tage: list[date]) -> dict[date, li
     return dict(je_tag)
 
 
+def ist_abwesend(person: Mitarbeiter, datum: date) -> Abwesenheit | None:
+    """Die Abwesenheit liefern, die ``person`` am ``datum`` betrifft — sonst ``None``.
+
+    Maßgeblich ist der inklusive Zeitraum ``von``–``bis``. Existieren mehrere
+    überlappende Einträge, wird der erste (nach Standard-Sortierung) genügt, um
+    die Person als abwesend zu erkennen.
+    """
+    return person.abwesenheiten.filter(von__lte=datum, bis__gte=datum).first()
+
+
 def einteilen(person: Mitarbeiter, vorlage: Schichtvorlage, datum: date) -> Zuweisung:
     """Einen Mitarbeiter der Schicht ``vorlage`` am ``datum`` zuweisen — idempotent.
 
@@ -174,10 +204,42 @@ def einteilen(person: Mitarbeiter, vorlage: Schichtvorlage, datum: date) -> Zuwe
     durch das Einteilen an einem Tag zur planbaren Schicht). Eine bereits
     bestehende Zuweisung wird unverändert zurückgegeben, sodass mehrfaches
     Einteilen keine Doubletten erzeugt.
+
+    Ist der Mitarbeiter am ``datum`` abwesend (Urlaub/Krank), wird die Einteilung
+    mit ``EinteilenBlockiert`` abgelehnt — ein Abwesender darf nicht verplant
+    werden.
     """
+    abwesenheit = ist_abwesend(person, datum)
+    if abwesenheit is not None:
+        raise EinteilenBlockiert(
+            f"{person.voller_name} ist am {datum:%d.%m.%Y} abwesend "
+            f"({abwesenheit.art_anzeige}) und kann nicht eingeteilt werden."
+        )
     schicht, _ = Schicht.objects.get_or_create(vorlage=vorlage, datum=datum)
     zuweisung, _ = Zuweisung.objects.get_or_create(schicht=schicht, mitarbeiter=person)
     return zuweisung
+
+
+def abwesenheiten_je_woche(
+    betrieb: Betrieb, tage: list[date]
+) -> dict[tuple[int, date], Abwesenheit]:
+    """Abwesenheiten der Woche je (Mitarbeiter, Tag) für die Gitter-Anzeige.
+
+    Lädt alle Abwesenheiten, die das Wochenfenster überlappen, in einer einzigen
+    Abfrage und ordnet sie den konkreten Tagen zu. So lässt sich im Gitter ohne
+    N+1-Abfragen markieren, an welchen Tagen jemand nicht verfügbar ist.
+    """
+    treffer: dict[tuple[int, date], Abwesenheit] = {}
+    abwesenheiten = Abwesenheit.objects.filter(
+        mitarbeiter__betrieb=betrieb,
+        von__lte=tage[-1],
+        bis__gte=tage[0],
+    )
+    for abwesenheit in abwesenheiten:
+        for tag in tage:
+            if abwesenheit.umfasst(tag):
+                treffer[(abwesenheit.mitarbeiter_id, tag)] = abwesenheit
+    return treffer
 
 
 def tageszuteilung(betrieb: Betrieb, person: Mitarbeiter, datum: date) -> dict:
