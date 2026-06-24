@@ -4,6 +4,38 @@ Neueste oben.
 
 ## Done
 
+- **M11 · Stundenübersicht + Export** — Neuer Nav-Punkt „Stunden": eine
+  vollständige Stunden-Tabelle je Mitarbeiter über die Woche (Mo–So pro Tag,
+  Wochensumme, Vertrag und Differenz mit +/‑-Markierung), plus Tagessummen
+  (Spaltensummen) und Wochengesamt. Die reine Aufbereitung liegt in
+  ``services.stundenuebersicht`` (alle Zuweisungen in einer Abfrage, im Speicher
+  zu (Mitarbeiter, Tag)-Stunden verdichtet — kein N+1) und ist ohne HTTP testbar;
+  Wochen-Navigation wie im Dienstplan über ``?start=``. Dazu der **CSV-Export**
+  des Wochenplans (``services.plan_export_zeilen`` + View ``plan_export``): je
+  Zuweisung eine Zeile (Datum, Wochentag, Mitarbeiter, Rolle, Abteilung, Schicht,
+  Beginn/Ende, Stunden), stabil sortiert nach Datum→Beginn→Name. Excel-DE-tauglich:
+  Semikolon-getrennt, deutsches Dezimalkomma (``_stunden_dezimal``: 8,0→„8",
+  7,5→„7,5"), UTF-8-BOM für korrekte Umlaute; Dateiname trägt den Wochen-Montag.
+  Beide Views login-geschützt und auf den Betrieb gescoped. 200 Tests grün (21 neu:
+  Stunden je Tag/Woche, Mehrfachschichten, Wochengrenze, Differenz, Tagessummen,
+  Sortierung; Dezimalformat; Export-Zeilenaufbau inkl. ohne Abteilung, Wochenfilter
+  und Sortierung; Stunden-View und CSV-View inkl. Header/BOM/Disposition), ruff sauber.
+
+- **M10 · Registrierung + Onboarding** — Der Prototyp öffnet sich für mehrere
+  Betriebe. Neues Modell ``accounts.Betriebszugehoerigkeit`` (OneToOne User →
+  Betrieb): Die Registrierung (``RegistrierungForm`` auf Basis von Djangos
+  ``UserCreationForm``) legt in einer Transaktion Login **und** eigenen Betrieb an,
+  meldet direkt an und leitet ins Onboarding. ``services.aktueller_betrieb`` ist
+  jetzt nutzer-bewusst: mit Zuordnung der eigene Betrieb, sonst (Altzugänge/Tests)
+  unverändert der erste Betrieb — alle Views reichen nun ``request.user`` durch.
+  Geführtes Onboarding (``/planung/start/``): ``onboarding_status`` baut drei
+  Schritte (Mitarbeiter → Vorlage → Einteilen), jeder erledigt, sobald die Daten
+  existieren; eigene Klassen ``.steps``/``.step`` auf dem Design, Fortschritts-Badge.
+  Übersicht zeigt bis zum Abschluss einen Hinweis-Banner aufs Onboarding;
+  Login-/Registrierungsseiten verlinken sich gegenseitig. 179 Tests grün (23 neu:
+  Formular, Registrierungs-View, nutzer-bewusste Betriebsauflösung, Onboarding-Logik
+  inkl. Betriebs-Scoping, Onboarding-View), ruff sauber.
+
 - **M9 · Dashboard (echt)** — Die Übersicht zeigt jetzt echte Wochenzahlen statt
   Platzhalter. Neue Service-Funktion ``dashboard_daten`` (ohne HTTP testbar) lädt
   die Zuweisungen der laufenden Woche in einer Abfrage und verdichtet sie: vier

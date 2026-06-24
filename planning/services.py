@@ -14,6 +14,7 @@ isoliert getestet werden kann.
 from __future__ import annotations
 
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import date, timedelta
 
 from django.db.models import Count
@@ -44,14 +45,30 @@ class EinteilenBlockiert(Exception):
 WOCHENTAG_KUERZEL = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
 
 
-def aktueller_betrieb() -> Betrieb:
+def aktueller_betrieb(user: object | None = None) -> Betrieb:
     """Liefert den Betrieb, in dessen Kontext gerade geplant wird.
 
-    Existiert noch keiner (frische Installation), wird ein Standard-Betrieb
-    angelegt, damit die Ansichten ohne vorheriges Onboarding nutzbar sind.
-    Maßgeblich ist der zuerst angelegte Betrieb (nach ``id``), damit die Auswahl
-    stabil bleibt und nicht von der alphabetischen Standard-Sortierung abhängt.
+    Seit M10 legt jedes Login bei der Registrierung seinen eigenen Betrieb an. Ist
+    ein angemeldeter ``user`` mit einer ``Betriebszugehoerigkeit`` übergeben, wird
+    dessen Betrieb verwendet. Ohne Zuordnung (oder ohne user) fällt die Funktion
+    auf den zuerst angelegten Betrieb zurück — so bleiben Altzugänge und Tests, die
+    keinen Account-Bezug haben, weiterhin nutzbar.
+
+    Existiert noch gar kein Betrieb (frische Installation), wird ein
+    Standard-Betrieb angelegt, damit die Ansichten nie ins Leere laufen.
     """
+    if user is not None and getattr(user, "is_authenticated", False):
+        # Lokaler Import: accounts hängt von planning.models ab, daher hier statt
+        # auf Modulebene, um einen Import-Zyklus zu vermeiden.
+        from accounts.models import Betriebszugehoerigkeit
+
+        zugehoerigkeit = (
+            Betriebszugehoerigkeit.objects.filter(user=user)
+            .select_related("betrieb")
+            .first()
+        )
+        if zugehoerigkeit is not None:
+            return zugehoerigkeit.betrieb
     betrieb = Betrieb.objects.order_by("id").first()
     if betrieb is None:
         betrieb = Betrieb.objects.create(name=STANDARD_BETRIEB_NAME)
@@ -367,6 +384,133 @@ def dashboard_daten(betrieb: Betrieb, start: date, heute: date) -> dict:
     }
 
 
+def stundenuebersicht(betrieb: Betrieb, start: date, heute: date) -> dict:
+    """Geplante Stunden je Mitarbeiter über die Woche, gegen die Vertragszeit (M11).
+
+    Ergänzt das Dashboard um eine vollständige Stunden-Tabelle: je aktivem
+    Mitarbeiter die geplanten Stunden pro Wochentag (Mo–So), die Wochensumme und
+    die Differenz zur vertraglich vereinbarten Zeit (positiv = Mehrarbeit,
+    negativ = noch Luft). Zusätzlich die Tagessummen (Spaltensummen) und die
+    Gesamtstunden der Woche, damit ein Planer Lastspitzen erkennt.
+
+    Alle Zuweisungen der Woche werden in einer Abfrage geladen und im Speicher zu
+    (Mitarbeiter, Tag)-Stunden verdichtet (kein N+1). Die reine Aufbereitung ist
+    ohne HTTP testbar.
+    """
+    tage = wochentage(start)
+    aktive = list(betrieb.mitarbeiter.filter(aktiv=True))
+
+    stunden_je_zelle: dict[tuple[int, date], float] = defaultdict(float)
+    zuweisungen = Zuweisung.objects.filter(
+        mitarbeiter__betrieb=betrieb,
+        schicht__datum__range=(tage[0], tage[-1]),
+    ).select_related("schicht__vorlage")
+    for zuweisung in zuweisungen:
+        stunden_je_zelle[(zuweisung.mitarbeiter_id, zuweisung.schicht.datum)] += (
+            zuweisung.schicht.dauer_stunden
+        )
+
+    zeilen = []
+    tagessummen = [0.0] * len(tage)
+    gesamt = 0.0
+    for person in aktive:
+        tagesstunden = [stunden_je_zelle.get((person.id, tag), 0.0) for tag in tage]
+        summe = sum(tagesstunden)
+        soll = float(person.vertragsstunden)
+        zeilen.append(
+            {
+                "person": person,
+                "tage": tagesstunden,
+                "summe": summe,
+                "soll": soll,
+                "differenz": summe - soll,
+            }
+        )
+        for index, stunden in enumerate(tagesstunden):
+            tagessummen[index] += stunden
+        gesamt += summe
+    zeilen.sort(key=lambda zeile: zeile["summe"], reverse=True)
+
+    kopf = [
+        {
+            "kuerzel": WOCHENTAG_KUERZEL[index],
+            "datum": tag,
+            "ist_heute": tag == heute,
+            "ist_wochenende": index >= 5,
+        }
+        for index, tag in enumerate(tage)
+    ]
+    return {
+        "start": start,
+        "ende": tage[-1],
+        "kopf": kopf,
+        "zeilen": zeilen,
+        "tagessummen": tagessummen,
+        "gesamt": gesamt,
+        "vorwoche": start - timedelta(days=7),
+        "naechste": start + timedelta(days=7),
+    }
+
+
+# Spaltenüberschriften des Plan-Exports (CSV). Bewusst sprechend für den Empfänger.
+PLAN_EXPORT_KOPF = [
+    "Datum",
+    "Wochentag",
+    "Mitarbeiter",
+    "Rolle",
+    "Abteilung",
+    "Schicht",
+    "Beginn",
+    "Ende",
+    "Stunden",
+]
+
+
+def _stunden_dezimal(stunden: float) -> str:
+    """Stunden als deutsche Dezimalzahl ohne überflüssige Nullen (z. B. ``7,5``)."""
+    text = f"{stunden:.2f}".rstrip("0").rstrip(".")
+    return text.replace(".", ",")
+
+
+def plan_export_zeilen(betrieb: Betrieb, start: date) -> list[list[str]]:
+    """Den Wochenplan als Tabellenzeilen für den CSV-Export aufbereiten (M11).
+
+    Jede Zuweisung der Woche wird zu einer Zeile: Datum, Wochentag, Mitarbeiter,
+    Rolle, Abteilung, Schichtname, Beginn/Ende und Stundenzahl. Sortiert nach
+    Datum, dann Schichtbeginn, dann Mitarbeitername, damit der Export stabil und
+    gut lesbar ist. Die Aufbereitung ist von der HTTP-/CSV-Schicht getrennt und
+    damit isoliert testbar; alle Zuweisungen werden in einer Abfrage geladen.
+    """
+    tage = wochentage(start)
+    zuweisungen = (
+        Zuweisung.objects.filter(
+            mitarbeiter__betrieb=betrieb,
+            schicht__datum__range=(tage[0], tage[-1]),
+        )
+        .select_related("schicht__vorlage__abteilung", "mitarbeiter")
+        .order_by("schicht__datum", "schicht__vorlage__beginn", "mitarbeiter__nachname")
+    )
+    zeilen: list[list[str]] = []
+    for zuweisung in zuweisungen:
+        schicht = zuweisung.schicht
+        vorlage = schicht.vorlage
+        person = zuweisung.mitarbeiter
+        zeilen.append(
+            [
+                schicht.datum.isoformat(),
+                WOCHENTAG_KUERZEL[schicht.datum.weekday()],
+                person.voller_name,
+                person.rolle,
+                vorlage.abteilung.name if vorlage.abteilung else "",
+                vorlage.name,
+                f"{vorlage.beginn:%H:%M}",
+                f"{vorlage.ende:%H:%M}",
+                _stunden_dezimal(schicht.dauer_stunden),
+            ]
+        )
+    return zeilen
+
+
 def tageszuteilung(betrieb: Betrieb, person: Mitarbeiter, datum: date) -> dict:
     """Daten für die Einteilen-Seite eines Mitarbeiters an einem Tag.
 
@@ -384,3 +528,76 @@ def tageszuteilung(betrieb: Betrieb, person: Mitarbeiter, datum: date) -> dict:
     belegte_vorlagen = {zuweisung.schicht.vorlage_id for zuweisung in zuweisungen}
     verfuegbar = betrieb.schichtvorlagen.exclude(id__in=belegte_vorlagen)
     return {"zuweisungen": zuweisungen, "verfuegbar": verfuegbar}
+
+
+@dataclass(frozen=True)
+class OnboardingSchritt:
+    """Ein geführter Einrichtungsschritt mit Ziel-Ansicht und Erledigt-Status."""
+
+    schluessel: str
+    titel: str
+    beschreibung: str
+    url_name: str
+    erledigt: bool
+
+
+@dataclass(frozen=True)
+class OnboardingStatus:
+    """Fortschritt der Ersteinrichtung eines frisch angelegten Betriebs."""
+
+    schritte: list[OnboardingSchritt]
+
+    @property
+    def erledigt_anzahl(self) -> int:
+        return sum(1 for schritt in self.schritte if schritt.erledigt)
+
+    @property
+    def gesamt(self) -> int:
+        return len(self.schritte)
+
+    @property
+    def fertig(self) -> bool:
+        """True, sobald alle Schritte erledigt sind (Onboarding abgeschlossen)."""
+        return self.erledigt_anzahl == self.gesamt
+
+    @property
+    def naechster(self) -> OnboardingSchritt | None:
+        """Der erste noch offene Schritt (für den Haupt-Aufruf), sonst ``None``."""
+        return next((schritt for schritt in self.schritte if not schritt.erledigt), None)
+
+
+def onboarding_status(betrieb: Betrieb) -> OnboardingStatus:
+    """Den Einrichtungsfortschritt eines Betriebs als geführte Schrittliste bauen.
+
+    Die drei Schritte spiegeln den kürzesten Weg zu einem nutzbaren Dienstplan:
+    erst Mitarbeiter, dann eine Schichtvorlage, dann die erste Einteilung. Jeder
+    Schritt gilt als erledigt, sobald der zugehörige Datenbestand existiert. Die
+    Logik liest nur Zählwerte und ist damit ohne HTTP testbar.
+    """
+    hat_mitarbeiter = betrieb.mitarbeiter.exists()
+    hat_vorlagen = betrieb.schichtvorlagen.exists()
+    hat_zuweisung = Zuweisung.objects.filter(schicht__vorlage__betrieb=betrieb).exists()
+    schritte = [
+        OnboardingSchritt(
+            schluessel="mitarbeiter",
+            titel="Mitarbeiter anlegen",
+            beschreibung="Lege die Personen an, die du verplanen möchtest.",
+            url_name="planning:mitarbeiter_neu",
+            erledigt=hat_mitarbeiter,
+        ),
+        OnboardingSchritt(
+            schluessel="vorlagen",
+            titel="Schichtvorlage anlegen",
+            beschreibung="Definiere deine Dienste (z. B. Früh, Spät, Nacht) mit Zeiten.",
+            url_name="planning:vorlage_neu",
+            erledigt=hat_vorlagen,
+        ),
+        OnboardingSchritt(
+            schluessel="einteilen",
+            titel="Erste Schicht einteilen",
+            beschreibung="Weise im Wochengitter einen Mitarbeiter einer Schicht zu.",
+            url_name="planning:schedule",
+            erledigt=hat_zuweisung,
+        ),
+    ]
+    return OnboardingStatus(schritte=schritte)

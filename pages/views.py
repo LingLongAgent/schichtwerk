@@ -15,8 +15,13 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     testbar); die View liefert nur den Mandanten- und Wochenkontext und reicht das
     Ergebnis an das Template weiter.
     """
-    betrieb = aktueller_betrieb()
+    betrieb = aktueller_betrieb(request.user)
     heute = timezone.localdate()
     start = services.wochenstart(heute)
     daten = services.dashboard_daten(betrieb, start, heute)
-    return render(request, "pages/dashboard.html", {"daten": daten, "heute": heute})
+    onboarding = services.onboarding_status(betrieb)
+    return render(
+        request,
+        "pages/dashboard.html",
+        {"daten": daten, "heute": heute, "onboarding": onboarding},
+    )

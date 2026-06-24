@@ -1,0 +1,71 @@
+{% extends "main.html" %}
+{% block title %}Stunden · Schichtwerk{% endblock %}
+{% block page_title %}Stundenübersicht{% endblock %}
+{% block page_sub %}<div class="page-sub">Woche {{ daten.start|date:"d.m." }}–{{ daten.ende|date:"d.m.Y" }}</div>{% endblock %}
+{% block nav_stunden %}active{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-ghost btn-sm" href="?start={{ daten.vorwoche|date:'Y-m-d' }}" title="Vorige Woche">←</a>
+<a class="btn btn-ghost btn-sm" href="?">Heute</a>
+<a class="btn btn-ghost btn-sm" href="?start={{ daten.naechste|date:'Y-m-d' }}" title="Nächste Woche">→</a>
+<a class="btn btn-primary btn-sm" href="{% url 'planning:plan_export' %}?start={{ daten.start|date:'Y-m-d' }}">CSV-Export</a>
+{% endblock %}
+{% block content %}
+{% if daten.zeilen %}
+<div class="card card-pad">
+  <div class="section-head"><h2>Geplante Stunden je Mitarbeiter</h2>
+    <span class="muted" style="font-size:12px">Woche gesamt: <b class="tnum">{{ daten.gesamt|floatformat:"-1" }} h</b></span></div>
+  <div class="schedule">
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th class="row-emp">Mitarbeiter</th>
+          {% for tag in daten.kopf %}
+          <th class="num {% if tag.ist_heute %}today{% endif %}">{{ tag.kuerzel }}<br><span class="muted" style="font-weight:400">{{ tag.datum|date:"d.m." }}</span></th>
+          {% endfor %}
+          <th class="num">Summe</th>
+          <th class="num">Vertrag</th>
+          <th class="num">Differenz</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for zeile in daten.zeilen %}
+        <tr>
+          <td class="cell-strong"><span class="color-dot" style="background:{{ zeile.person.farbe }}"></span>{{ zeile.person.voller_name }}</td>
+          {% for stunden in zeile.tage %}
+          <td class="num tnum">{% if stunden %}{{ stunden|floatformat:"-1" }}{% else %}<span class="muted">·</span>{% endif %}</td>
+          {% endfor %}
+          <td class="num tnum"><b>{{ zeile.summe|floatformat:"-1" }}</b></td>
+          <td class="num tnum muted">{{ zeile.soll|floatformat:"-1" }}</td>
+          <td class="num tnum">
+            {% if zeile.differenz > 0 %}<span class="badge badge-warn"><span class="dot"></span>+{{ zeile.differenz|floatformat:"-1" }} h</span>
+            {% elif zeile.differenz < 0 %}<span class="muted">{{ zeile.differenz|floatformat:"-1" }} h</span>
+            {% else %}<span class="badge badge-ok"><span class="dot"></span>genau</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td class="row-emp">Tagessumme</td>
+          {% for stunden in daten.tagessummen %}
+          <td class="num tnum">{% if stunden %}{{ stunden|floatformat:"-1" }}{% else %}<span class="muted">·</span>{% endif %}</td>
+          {% endfor %}
+          <td class="num tnum"><b>{{ daten.gesamt|floatformat:"-1" }}</b></td>
+          <td class="num"></td>
+          <td class="num"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+<p class="muted" style="margin-top:14px;font-size:13px">
+  Stunden zählen die geplanten Schichten dieser Woche. „Differenz" vergleicht die Summe mit den Vertragsstunden
+  (+ = Mehrarbeit). Der CSV-Export gibt den vollständigen Wochenplan als Datei aus (Excel-tauglich, Semikolon-getrennt).
+</p>
+{% else %}
+<div class="card"><div class="empty">
+  <p>Noch keine aktiven Mitarbeiter — lege zuerst Mitarbeiter an, um Stunden zu planen.</p>
+  <a class="btn btn-primary btn-sm" href="{% url 'planning:mitarbeiter_neu' %}">Mitarbeiter anlegen</a>
+</div></div>
+{% endif %}
+{% endblock %}

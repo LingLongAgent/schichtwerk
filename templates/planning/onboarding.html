@@ -1,0 +1,34 @@
+{% extends "main.html" %}
+{% block title %}Erste Schritte · Schichtwerk{% endblock %}
+{% block page_title %}Erste Schritte{% endblock %}
+{% block page_sub %}<div class="page-sub">In drei Schritten zum ersten Dienstplan</div>{% endblock %}
+{% block content %}
+<div class="card card-pad" style="max-width:720px">
+  {% if status.fertig %}
+    <div class="section-head"><h2>Alles eingerichtet</h2>
+      <span class="badge badge-ok"><span class="dot"></span>Fertig</span></div>
+    <p class="muted" style="margin:0 0 16px">Dein Betrieb ist startklar. Du kannst jetzt im
+      Wochengitter planen.</p>
+    <a class="btn btn-primary btn-sm" href="{% url 'planning:schedule' %}">Zum Dienstplan</a>
+  {% else %}
+    <div class="section-head"><h2>Richte deinen Betrieb ein</h2></div>
+    <div class="step-prog">{{ status.erledigt_anzahl }} von {{ status.gesamt }} erledigt</div>
+    <div class="steps">
+      {% for schritt in status.schritte %}
+      <div class="step {% if schritt.erledigt %}step-done{% endif %}">
+        <div class="step-num">{% if schritt.erledigt %}✓{% else %}{{ forloop.counter }}{% endif %}</div>
+        <div class="step-body">
+          <div class="step-title">{{ schritt.titel }}</div>
+          <div class="step-desc">{{ schritt.beschreibung }}</div>
+        </div>
+        {% if schritt.erledigt %}
+          <span class="badge badge-ok"><span class="dot"></span>Erledigt</span>
+        {% else %}
+          <a class="btn btn-primary btn-sm" href="{% url schritt.url_name %}">Los geht's</a>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

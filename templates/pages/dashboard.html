@@ -7,6 +7,11 @@
 <a class="btn btn-primary btn-sm" href="{% url 'planning:schedule' %}">Zum Dienstplan</a>
 {% endblock %}
 {% block content %}
+{% if not onboarding.fertig %}
+<a class="flash" href="{% url 'planning:onboarding' %}" style="display:block;text-decoration:none;margin-bottom:18px">
+  Erste Schritte: {{ onboarding.erledigt_anzahl }} von {{ onboarding.gesamt }} erledigt — Einrichtung fortsetzen →
+</a>
+{% endif %}
 <div class="kpi-grid">
   {% for kpi in daten.kpis %}
   <div class="card kpi-card"><span class="kpi-label">{{ kpi.label }}</span>
