@@ -1,0 +1,46 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Schichtwerk{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="{% static 'css/design.css' %}">
+</head>
+<body>
+{% if user.is_authenticated %}
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">S</div>
+      <div><div class="brand-name">Schichtwerk</div><div class="brand-sub">Dienstplanung</div></div>
+    </div>
+    <div class="nav-group-label">Planung</div>
+    <a class="nav-item {% block nav_dashboard %}{% endblock %}" href="{% url 'dashboard' %}"><span>Übersicht</span></a>
+    <a class="nav-item {% block nav_schedule %}{% endblock %}" href="{% url 'planning:schedule' %}"><span>Dienstplan</span></a>
+    <div class="nav-spacer"></div>
+    <div class="sidebar-foot">
+      <form method="post" action="{% url 'logout' %}">{% csrf_token %}
+        <button class="user-card" type="submit" title="Abmelden">
+          <div class="avatar">{{ user.username|slice:":2"|upper }}</div>
+          <div class="user-meta"><b>{{ user.get_username }}</b><span>Abmelden</span></div>
+        </button>
+      </form>
+    </div>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <div><div class="page-title">{% block page_title %}Übersicht{% endblock %}</div>
+        {% block page_sub %}{% endblock %}</div>
+      <div class="topbar-spacer"></div>
+      {% block topbar_actions %}{% endblock %}
+    </header>
+    <main class="content"><div class="content-inner">
+      {% if messages %}{% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}{% endif %}
+      {% block content %}{% endblock %}
+    </div></main>
+  </div>
+</div>
+{% else %}<main class="auth-shell">{% block auth_content %}{% endblock %}</main>{% endif %}
+</body>
+</html>

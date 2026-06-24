@@ -1,0 +1,15 @@
+{% extends "main.html" %}
+{% block title %}Übersicht · Schichtwerk{% endblock %}
+{% block page_title %}Übersicht{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+{% block content %}
+<div class="kpi-grid">
+  {% for kpi in kpis %}
+  <div class="card kpi-card"><span class="kpi-label">{{ kpi.label }}</span>
+    <span class="kpi-val tnum">{{ kpi.value }}</span></div>
+  {% endfor %}
+</div>
+<div class="section-head" style="margin-top:24px"><h2>Diese Woche</h2>
+  <a class="btn btn-primary btn-sm" href="{% url 'planning:schedule' %}">Zum Dienstplan</a></div>
+<div class="card card-pad"><p class="muted">Noch keine Schichten geplant. Lege Mitarbeiter und Schichten an, um den Dienstplan zu füllen.</p></div>
+{% endblock %}
