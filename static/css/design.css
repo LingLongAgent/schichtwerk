@@ -130,6 +130,10 @@ button, input, select, textarea { font-family: inherit; }
 .badge-info { color: var(--accent-ink); background: var(--info-bg); } .badge-info .dot { background: var(--accent); }
 .badge-muted { color: var(--ink-2); background: var(--muted-bg); } .badge-muted .dot { background: var(--ink-3); }
 
+/* Farbpunkt zur Kennzeichnung eines Mitarbeiters (seine Gitter-Farbe). */
+.color-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+  margin-right: 8px; vertical-align: middle; box-shadow: 0 0 0 1px rgba(0,0,0,.06); }
+
 /* ---- tables ---- */
 .tbl { width: 100%; border-collapse: collapse; }
 .tbl thead th { text-align: left; font-size: 11px; font-weight: 600; letter-spacing: .05em;

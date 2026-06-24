@@ -1,0 +1,41 @@
+{% extends "main.html" %}
+{% block title %}Mitarbeiter · Schichtwerk{% endblock %}
+{% block page_title %}Mitarbeiter{% endblock %}
+{% block nav_mitarbeiter %}active{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-primary btn-sm" href="{% url 'planning:mitarbeiter_neu' %}">Mitarbeiter anlegen</a>
+{% endblock %}
+{% block content %}
+{% if mitarbeiter_liste %}
+<div class="card">
+  <table class="tbl">
+    <thead>
+      <tr><th>Name</th><th>Rolle</th><th>Abteilung</th><th class="num">Stunden/Woche</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+      {% for person in mitarbeiter_liste %}
+      <tr>
+        <td>
+          <a href="{% url 'planning:mitarbeiter_detail' person.pk %}">
+            <span class="color-dot" style="background:{{ person.farbe }}"></span>{{ person.voller_name }}
+          </a>
+        </td>
+        <td>{{ person.rolle|default:"—" }}</td>
+        <td>{{ person.abteilung.name|default:"—" }}</td>
+        <td class="num tnum">{{ person.vertragsstunden }}</td>
+        <td>
+          {% if person.aktiv %}<span class="badge badge-ok"><span class="dot"></span>Aktiv</span>
+          {% else %}<span class="badge badge-muted"><span class="dot"></span>Inaktiv</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card"><div class="empty">
+  <p>Noch keine Mitarbeiter angelegt.</p>
+  <a class="btn btn-primary btn-sm" href="{% url 'planning:mitarbeiter_neu' %}">Ersten Mitarbeiter anlegen</a>
+</div></div>
+{% endif %}
+{% endblock %}

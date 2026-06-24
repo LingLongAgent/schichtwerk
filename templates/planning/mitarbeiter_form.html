@@ -1,0 +1,24 @@
+{% extends "main.html" %}
+{% block title %}{% if ist_neu %}Mitarbeiter anlegen{% else %}{{ person.voller_name }} bearbeiten{% endif %} · Schichtwerk{% endblock %}
+{% block page_title %}{% if ist_neu %}Mitarbeiter anlegen{% else %}Mitarbeiter bearbeiten{% endif %}{% endblock %}
+{% block nav_mitarbeiter %}active{% endblock %}
+{% block content %}
+<form method="post" class="card card-pad" style="max-width:620px">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="field-error">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="form-grid">
+    {% for field in form %}
+    <div class="field"{% if field.name == "rolle" or field.name == "aktiv" %} style="grid-column:1 / -1"{% endif %}>
+      <label class="field-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+      {% if field.errors %}<div class="field-error">{{ field.errors|join:", " }}</div>{% endif %}
+      {% if field.help_text %}<div class="field-hint">{{ field.help_text }}</div>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="section-head" style="margin-top:8px">
+    <a class="btn btn-ghost btn-sm" href="{% if ist_neu %}{% url 'planning:mitarbeiter_liste' %}{% else %}{% url 'planning:mitarbeiter_detail' person.pk %}{% endif %}">Abbrechen</a>
+    <button class="btn btn-primary btn-sm" type="submit">{% if ist_neu %}Anlegen{% else %}Speichern{% endif %}</button>
+  </div>
+</form>
+{% endblock %}

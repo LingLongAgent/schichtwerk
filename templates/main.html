@@ -18,6 +18,7 @@
     <div class="nav-group-label">Planung</div>
     <a class="nav-item {% block nav_dashboard %}{% endblock %}" href="{% url 'dashboard' %}"><span>Übersicht</span></a>
     <a class="nav-item {% block nav_schedule %}{% endblock %}" href="{% url 'planning:schedule' %}"><span>Dienstplan</span></a>
+    <a class="nav-item {% block nav_mitarbeiter %}{% endblock %}" href="{% url 'planning:mitarbeiter_liste' %}"><span>Mitarbeiter</span></a>
     <div class="nav-spacer"></div>
     <div class="sidebar-foot">
       <form method="post" action="{% url 'logout' %}">{% csrf_token %}

@@ -1,0 +1,25 @@
+{% extends "main.html" %}
+{% block title %}{{ person.voller_name }} · Schichtwerk{% endblock %}
+{% block page_title %}{{ person.voller_name }}{% endblock %}
+{% block nav_mitarbeiter %}active{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-ghost btn-sm" href="{% url 'planning:mitarbeiter_liste' %}">Zurück</a>
+<a class="btn btn-primary btn-sm" href="{% url 'planning:mitarbeiter_bearbeiten' person.pk %}">Bearbeiten</a>
+{% endblock %}
+{% block content %}
+<div class="card card-pad">
+  <div class="section-head"><h2>Stammdaten</h2>
+    {% if person.aktiv %}<span class="badge badge-ok"><span class="dot"></span>Aktiv</span>
+    {% else %}<span class="badge badge-muted"><span class="dot"></span>Inaktiv</span>{% endif %}
+  </div>
+  <table class="tbl">
+    <tbody>
+      <tr><td>Name</td><td><span class="color-dot" style="background:{{ person.farbe }}"></span>{{ person.voller_name }}</td></tr>
+      <tr><td>Rolle</td><td>{{ person.rolle|default:"—" }}</td></tr>
+      <tr><td>Abteilung</td><td>{{ person.abteilung.name|default:"—" }}</td></tr>
+      <tr><td>Vertragsstunden/Woche</td><td class="tnum">{{ person.vertragsstunden }}</td></tr>
+      <tr><td>Farbe im Plan</td><td>{{ person.farbe }}</td></tr>
+    </tbody>
+  </table>
+</div>
+{% endblock %}
