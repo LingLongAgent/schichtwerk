@@ -1,0 +1,40 @@
+{% extends "main.html" %}
+{% block title %}Abteilungen · Schichtwerk{% endblock %}
+{% block page_title %}Abteilungen{% endblock %}
+{% block nav_abteilungen %}active{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-primary btn-sm" href="{% url 'planning:abteilung_neu' %}">Abteilung anlegen</a>
+{% endblock %}
+{% block content %}
+{% if abteilungen %}
+<div class="card">
+  <table class="tbl">
+    <thead>
+      <tr><th>Name</th><th class="num">Mitarbeiter</th><th class="num">Vorlagen</th><th class="num">Aktionen</th></tr>
+    </thead>
+    <tbody>
+      {% for abteilung in abteilungen %}
+      <tr>
+        <td>{{ abteilung.name }}</td>
+        <td class="num tnum">{{ abteilung.anzahl_mitarbeiter }}</td>
+        <td class="num tnum">{{ abteilung.anzahl_vorlagen }}</td>
+        <td class="num">
+          <a class="btn btn-ghost btn-sm" href="{% url 'planning:abteilung_bearbeiten' abteilung.pk %}">Bearbeiten</a>
+          <form method="post" action="{% url 'planning:abteilung_loeschen' abteilung.pk %}" style="display:inline"
+                onsubmit="return confirm('Abteilung „{{ abteilung.name|escapejs }}“ wirklich löschen? Mitarbeiter und Vorlagen bleiben erhalten, verlieren aber die Zuordnung.');">
+            {% csrf_token %}
+            <button class="btn btn-danger btn-sm" type="submit">Löschen</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card"><div class="empty">
+  <p>Noch keine Abteilungen angelegt. Abteilungen helfen, den Dienstplan nach Bereich oder Standort zu filtern.</p>
+  <a class="btn btn-primary btn-sm" href="{% url 'planning:abteilung_neu' %}">Erste Abteilung anlegen</a>
+</div></div>
+{% endif %}
+{% endblock %}

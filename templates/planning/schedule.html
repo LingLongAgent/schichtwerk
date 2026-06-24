@@ -4,11 +4,22 @@
 {% block page_sub %}<div class="page-sub">Woche {{ gitter.start|date:"d.m." }}–{{ gitter.ende|date:"d.m.Y" }}</div>{% endblock %}
 {% block nav_schedule %}active{% endblock %}
 {% block topbar_actions %}
-<a class="btn btn-ghost btn-sm" href="?start={{ gitter.vorwoche|date:'Y-m-d' }}" title="Vorige Woche">←</a>
-<a class="btn btn-ghost btn-sm" href="{% url 'planning:schedule' %}">Heute</a>
-<a class="btn btn-ghost btn-sm" href="?start={{ gitter.naechste|date:'Y-m-d' }}" title="Nächste Woche">→</a>
+<a class="btn btn-ghost btn-sm" href="?start={{ gitter.vorwoche|date:'Y-m-d' }}{% if aktive_abteilung %}&abteilung={{ aktive_abteilung.id }}{% endif %}" title="Vorige Woche">←</a>
+<a class="btn btn-ghost btn-sm" href="?{% if aktive_abteilung %}abteilung={{ aktive_abteilung.id }}{% endif %}">Heute</a>
+<a class="btn btn-ghost btn-sm" href="?start={{ gitter.naechste|date:'Y-m-d' }}{% if aktive_abteilung %}&abteilung={{ aktive_abteilung.id }}{% endif %}" title="Nächste Woche">→</a>
 {% endblock %}
 {% block content %}
+{% if abteilungen %}
+<div class="filterbar">
+  <span class="filterbar-label">Abteilung</span>
+  <a class="btn btn-sm {% if aktive_abteilung %}btn-ghost{% else %}btn-primary{% endif %}"
+     href="?start={{ gitter.start|date:'Y-m-d' }}">Alle</a>
+  {% for abteilung in abteilungen %}
+  <a class="btn btn-sm {% if aktive_abteilung.id == abteilung.id %}btn-primary{% else %}btn-ghost{% endif %}"
+     href="?start={{ gitter.start|date:'Y-m-d' }}&abteilung={{ abteilung.id }}">{{ abteilung.name }}</a>
+  {% endfor %}
+</div>
+{% endif %}
 {% if gitter.zeilen %}
 {% if gitter.hat_konflikte %}
 <div class="card card-warn">

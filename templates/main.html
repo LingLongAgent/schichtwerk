@@ -20,6 +20,7 @@
     <a class="nav-item {% block nav_schedule %}{% endblock %}" href="{% url 'planning:schedule' %}"><span>Dienstplan</span></a>
     <a class="nav-item {% block nav_mitarbeiter %}{% endblock %}" href="{% url 'planning:mitarbeiter_liste' %}"><span>Mitarbeiter</span></a>
     <a class="nav-item {% block nav_vorlagen %}{% endblock %}" href="{% url 'planning:vorlage_liste' %}"><span>Schichtvorlagen</span></a>
+    <a class="nav-item {% block nav_abteilungen %}{% endblock %}" href="{% url 'planning:abteilung_liste' %}"><span>Abteilungen</span></a>
     <div class="nav-spacer"></div>
     <div class="sidebar-foot">
       <form method="post" action="{% url 'logout' %}">{% csrf_token %}

@@ -19,7 +19,15 @@ from datetime import date, timedelta
 from django.db.models import Count
 
 from . import regeln
-from .models import Abwesenheit, Betrieb, Mitarbeiter, Schicht, Schichtvorlage, Zuweisung
+from .models import (
+    Abteilung,
+    Abwesenheit,
+    Betrieb,
+    Mitarbeiter,
+    Schicht,
+    Schichtvorlage,
+    Zuweisung,
+)
 
 STANDARD_BETRIEB_NAME = "Mein Betrieb"
 
@@ -50,6 +58,23 @@ def aktueller_betrieb() -> Betrieb:
     return betrieb
 
 
+def abteilung_filter(betrieb: Betrieb, roh: str | None) -> Abteilung | None:
+    """Den Query-Parameter ``abteilung`` zu einer Abteilung des Betriebs auflösen.
+
+    Fehlt der Parameter, ist er kein gültiger Wert oder verweist er auf eine
+    fremde/unbekannte Abteilung, wird ``None`` zurückgegeben — der Plan zeigt dann
+    alle Abteilungen. So führt eine manipulierte URL nie zu einem Fehler, sondern
+    stets zur ungefilterten Ansicht.
+    """
+    if not roh:
+        return None
+    try:
+        abteilung_id = int(roh)
+    except (TypeError, ValueError):
+        return None
+    return betrieb.abteilungen.filter(pk=abteilung_id).first()
+
+
 def wochenstart(datum: date) -> date:
     """Montag der Kalenderwoche, in der ``datum`` liegt (Woche läuft Mo–So)."""
     return datum - timedelta(days=datum.weekday())
@@ -77,7 +102,9 @@ def wochentage(start: date) -> list[date]:
     return [start + timedelta(days=versatz) for versatz in range(7)]
 
 
-def wochengitter(betrieb: Betrieb, start: date, heute: date) -> dict:
+def wochengitter(
+    betrieb: Betrieb, start: date, heute: date, abteilung: Abteilung | None = None
+) -> dict:
     """Daten für das Wochengitter (Mitarbeiter × Wochentage) aufbereiten.
 
     Liefert je aktivem Mitarbeiter eine Zeile mit sieben Tageszellen; jede Zelle
@@ -86,6 +113,10 @@ def wochengitter(betrieb: Betrieb, start: date, heute: date) -> dict:
     Speicher den (Mitarbeiter, Tag)-Zellen zugeordnet, damit das Gitter keine
     N+1-Abfragen auslöst.
 
+    Ist ``abteilung`` gesetzt (M8), wird der Plan darauf eingeschränkt: nur
+    Mitarbeiter dieser Abteilung erscheinen als Zeilen und nur deren offene
+    Schichten in der Offen-Spur. So lässt sich pro Standort/Bereich planen.
+
     Zusätzlich werden die Arbeitszeit-Regeln (M6) je Mitarbeiter ausgewertet:
     ``zeilen[i]["konflikte"]`` trägt die Verstöße der Zeile, ``konflikte`` eine
     nach Mitarbeitern gruppierte Übersicht und ``konflikt_schicht_ids`` die Menge
@@ -93,7 +124,10 @@ def wochengitter(betrieb: Betrieb, start: date, heute: date) -> dict:
     hervorheben kann.
     """
     tage = wochentage(start)
-    mitarbeiter = list(betrieb.mitarbeiter.filter(aktiv=True))
+    aktive = betrieb.mitarbeiter.filter(aktiv=True)
+    if abteilung is not None:
+        aktive = aktive.filter(abteilung=abteilung)
+    mitarbeiter = list(aktive)
 
     belegung: dict[tuple[int, date], list[Schicht]] = defaultdict(list)
     zuweisungen = Zuweisung.objects.filter(
@@ -145,7 +179,7 @@ def wochengitter(betrieb: Betrieb, start: date, heute: date) -> dict:
         }
         for index, tag in enumerate(tage)
     ]
-    offen_je_tag = offene_schichten_je_tag(betrieb, tage)
+    offen_je_tag = offene_schichten_je_tag(betrieb, tage, abteilung)
     offen = [
         {"datum": tag, "ist_heute": tag == heute, "schichten": offen_je_tag.get(tag, [])}
         for tag in tage
@@ -162,22 +196,28 @@ def wochengitter(betrieb: Betrieb, start: date, heute: date) -> dict:
         "hat_konflikte": bool(konflikt_uebersicht),
         "vorwoche": start - timedelta(days=7),
         "naechste": start + timedelta(days=7),
+        "abteilung": abteilung,
     }
 
 
-def offene_schichten_je_tag(betrieb: Betrieb, tage: list[date]) -> dict[date, list[Schicht]]:
+def offene_schichten_je_tag(
+    betrieb: Betrieb, tage: list[date], abteilung: Abteilung | None = None
+) -> dict[date, list[Schicht]]:
     """Unterbesetzte Schichten der Woche, je Tag und nach Beginn sortiert.
 
     „Offen" heißt: weniger Zuweisungen als ``bedarf`` — die Schicht braucht noch
     Personal. Die Zuweisungszahl wird per ``Count`` mitannotiert, damit der
     Offen-Status ohne eine Zusatzabfrage je Schicht (N+1) bestimmt werden kann.
-    Nur Schichten des Betriebs im Wochenfenster werden betrachtet.
+    Nur Schichten des Betriebs im Wochenfenster werden betrachtet; ist
+    ``abteilung`` gesetzt, zusätzlich nur deren Vorlagen.
     """
     schichten = (
         Schicht.objects.filter(vorlage__betrieb=betrieb, datum__range=(tage[0], tage[-1]))
         .select_related("vorlage")
         .annotate(anzahl_zuweisungen=Count("zuweisungen"))
     )
+    if abteilung is not None:
+        schichten = schichten.filter(vorlage__abteilung=abteilung)
     je_tag: dict[date, list[Schicht]] = defaultdict(list)
     for schicht in schichten:
         if schicht.anzahl_zuweisungen < schicht.bedarf:

@@ -11,14 +11,15 @@ from datetime import date
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Count
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from . import services
-from .forms import AbwesenheitForm, MitarbeiterForm, SchichtvorlageForm
-from .models import Abwesenheit, Mitarbeiter, Schichtvorlage, Zuweisung
+from .forms import AbteilungForm, AbwesenheitForm, MitarbeiterForm, SchichtvorlageForm
+from .models import Abteilung, Abwesenheit, Mitarbeiter, Schichtvorlage, Zuweisung
 from .services import EinteilenBlockiert, aktueller_betrieb
 
 
@@ -46,8 +47,18 @@ def schedule(request: HttpRequest) -> HttpResponse:
     betrieb = aktueller_betrieb()
     heute = timezone.localdate()
     start = services.parse_wochenstart(request.GET.get("start"), heute)
-    gitter = services.wochengitter(betrieb, start, heute)
-    return render(request, "planning/schedule.html", {"gitter": gitter, "heute": heute})
+    abteilung = services.abteilung_filter(betrieb, request.GET.get("abteilung"))
+    gitter = services.wochengitter(betrieb, start, heute, abteilung)
+    return render(
+        request,
+        "planning/schedule.html",
+        {
+            "gitter": gitter,
+            "heute": heute,
+            "abteilungen": betrieb.abteilungen.all(),
+            "aktive_abteilung": abteilung,
+        },
+    )
 
 
 @login_required
@@ -267,3 +278,66 @@ def vorlage_loeschen(request: HttpRequest, pk: int) -> HttpResponse:
     vorlage.delete()
     messages.success(request, f"Vorlage „{name}“ wurde gelöscht.")
     return redirect("planning:vorlage_liste")
+
+
+@login_required
+def abteilung_liste(request: HttpRequest) -> HttpResponse:
+    """Alle Abteilungen des aktiven Betriebs mit Anzahl Mitarbeiter und Vorlagen."""
+    betrieb = aktueller_betrieb()
+    abteilungen = betrieb.abteilungen.annotate(
+        anzahl_mitarbeiter=Count("mitarbeiter", distinct=True),
+        anzahl_vorlagen=Count("schichtvorlagen", distinct=True),
+    )
+    return render(request, "planning/abteilung_liste.html", {"abteilungen": abteilungen})
+
+
+@login_required
+def abteilung_neu(request: HttpRequest) -> HttpResponse:
+    """Neue Abteilung anlegen."""
+    betrieb = aktueller_betrieb()
+    if request.method == "POST":
+        form = AbteilungForm(request.POST, betrieb=betrieb)
+        if form.is_valid():
+            abteilung = form.save()
+            messages.success(request, f"Abteilung „{abteilung.name}“ wurde angelegt.")
+            return redirect("planning:abteilung_liste")
+    else:
+        form = AbteilungForm(betrieb=betrieb)
+    return render(request, "planning/abteilung_form.html", {"form": form, "ist_neu": True})
+
+
+@login_required
+def abteilung_bearbeiten(request: HttpRequest, pk: int) -> HttpResponse:
+    """Eine bestehende Abteilung umbenennen."""
+    betrieb = aktueller_betrieb()
+    abteilung = get_object_or_404(Abteilung, pk=pk, betrieb=betrieb)
+    if request.method == "POST":
+        form = AbteilungForm(request.POST, instance=abteilung, betrieb=betrieb)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Abteilung „{abteilung.name}“ wurde aktualisiert.")
+            return redirect("planning:abteilung_liste")
+    else:
+        form = AbteilungForm(instance=abteilung, betrieb=betrieb)
+    return render(
+        request,
+        "planning/abteilung_form.html",
+        {"form": form, "abteilung": abteilung, "ist_neu": False},
+    )
+
+
+@login_required
+@require_POST
+def abteilung_loeschen(request: HttpRequest, pk: int) -> HttpResponse:
+    """Eine Abteilung löschen (nur per POST von der Liste aus).
+
+    Mitarbeiter und Schichtvorlagen behalten ihre Daten; ihr Abteilungs-Bezug
+    wird laut Modell auf ``NULL`` gesetzt (``on_delete=SET_NULL``), sodass kein
+    Personal oder Zeitschema verloren geht.
+    """
+    betrieb = aktueller_betrieb()
+    abteilung = get_object_or_404(Abteilung, pk=pk, betrieb=betrieb)
+    name = abteilung.name
+    abteilung.delete()
+    messages.success(request, f"Abteilung „{name}“ wurde gelöscht.")
+    return redirect("planning:abteilung_liste")

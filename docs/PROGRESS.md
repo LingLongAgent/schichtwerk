@@ -4,6 +4,22 @@ Neueste oben.
 
 ## Done
 
+- **M8 · Abteilungen/Standorte** — Vollständige Abteilungsverwaltung auf dem
+  Design: Liste mit Zähler je Abteilung (Mitarbeiter/Vorlagen, eine
+  ``Count``-Annotation statt N+1), Anlegen, Umbenennen, Löschen (POST-only). Das
+  ``AbteilungForm`` setzt den Betrieb beim Speichern und prüft den Namen je
+  Betrieb auf Eindeutigkeit ohne Rücksicht auf Groß-/Kleinschreibung (passend zur
+  DB-Bedingung); beim Bearbeiten ist der eigene Datensatz ausgenommen. Löschen ist
+  schonend: Mitarbeiter und Vorlagen behalten ihre Daten, nur ihr Abteilungsbezug
+  fällt auf ``NULL`` (``on_delete=SET_NULL``). Neuer Nav-Eintrag „Abteilungen".
+  Der Dienstplan lässt sich jetzt nach Abteilung filtern: neue ``.filterbar`` über
+  dem Gitter (Alle + je Abteilung), ``services.abteilung_filter`` löst den
+  ``?abteilung=``-Parameter robust auf (unbekannt/fremd/Unsinn → ungefiltert), das
+  Wochengitter zeigt dann nur Mitarbeiter und offene Schichten dieser Abteilung.
+  Die Wochen-Navigation behält den Filter bei. Views login-geschützt und auf den
+  Betrieb gescoped (fremde Abteilung → 404). 145 Tests grün (20 neu: Formular,
+  Filter-Auflösung, Gitter-/Offen-Filter, CRUD-Views), ruff sauber.
+
 - **M7 · Abwesenheiten/Urlaub** — Neues Modell ``Abwesenheit`` (Mitarbeiter, Art
   Urlaub/Krank/Sonstiges, inklusiver Zeitraum ``von``–``bis``, Notiz) mit
   DB-CheckConstraint ``bis >= von`` und ``umfasst(datum)``. Die Service-Funktion

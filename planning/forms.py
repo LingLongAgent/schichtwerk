@@ -12,6 +12,42 @@ from django import forms
 from .models import Abteilung, Abwesenheit, Betrieb, Mitarbeiter, Schichtvorlage
 
 
+class AbteilungForm(forms.ModelForm):
+    """Anlegen/Bearbeiten einer Abteilung (z. B. Küche, Empfang) eines Betriebs.
+
+    ``betrieb`` wird nicht im Formular gezeigt, sondern beim Speichern gesetzt.
+    Der Name muss je Betrieb eindeutig sein (passend zur DB-Bedingung am Modell);
+    geprüft wird ohne Rücksicht auf Groß-/Kleinschreibung, damit nicht „Küche"
+    und „küche" nebeneinander entstehen. Beim Bearbeiten ist der eigene Datensatz
+    von der Prüfung ausgenommen.
+    """
+
+    class Meta:
+        model = Abteilung
+        fields = ["name"]
+
+    def __init__(self, *args: object, betrieb: Betrieb, **kwargs: object) -> None:
+        super().__init__(*args, **kwargs)
+        self.betrieb = betrieb
+        self.fields["name"].widget.attrs["placeholder"] = "z. B. Küche"
+
+    def clean_name(self) -> str:
+        name: str = self.cleaned_data["name"]
+        schon_vergeben = Abteilung.objects.filter(betrieb=self.betrieb, name__iexact=name)
+        if self.instance.pk is not None:
+            schon_vergeben = schon_vergeben.exclude(pk=self.instance.pk)
+        if schon_vergeben.exists():
+            raise forms.ValidationError("Eine Abteilung mit diesem Namen existiert bereits.")
+        return name
+
+    def save(self, commit: bool = True) -> Abteilung:
+        abteilung: Abteilung = super().save(commit=False)
+        abteilung.betrieb = self.betrieb
+        if commit:
+            abteilung.save()
+        return abteilung
+
+
 class MitarbeiterForm(forms.ModelForm):
     """Anlegen/Bearbeiten eines Mitarbeiters innerhalb eines Betriebs.
 
