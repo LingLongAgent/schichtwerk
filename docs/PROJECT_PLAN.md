@@ -13,7 +13,7 @@ Stack: Django + eigenes Produktions-Design (`static/css/design.css`).
 
 ## Aufgaben
 - [x] M0 · Scaffold — Design-System, Auth, Übersicht/Dienstplan-Stubs. (2 Tests grün)
-- [ ] M1 (#1) · Datenmodell — Betrieb, Abteilung, Mitarbeiter (Rolle/Vertragsstunden/Farbe), Schichtvorlage (Start/Ende/Abteilung), Schicht-Instanz + Zuweisung. Migrationen, factories, Tests, Admin.
+- [x] M1 (#1) · Datenmodell — Betrieb, Abteilung, Mitarbeiter (Rolle/Vertragsstunden/Farbe), Schichtvorlage (Start/Ende/Abteilung), Schicht-Instanz + Zuweisung. Migrationen, factories, Tests, Admin.
 - [ ] M2 (#2) · Mitarbeiter-CRUD — Liste/Anlegen/Bearbeiten/Detail auf dem Design. Tests.
 - [ ] M3 (#3) · Schichtvorlagen-CRUD — Früh/Spät/Nacht etc. (Zeiten, Abteilung, benötigte Rolle). Tests.
 - [ ] M4 (#4) · Dienstplan-Wochengitter — Gitter (Mitarbeiter × Wochentage), Wochen-Navigation, Schichten anzeigen. Tests.
