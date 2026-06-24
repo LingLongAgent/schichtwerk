@@ -1,0 +1,32 @@
+{% extends "main.html" %}
+{% block title %}{{ vorlage.name }} · Schichtwerk{% endblock %}
+{% block page_title %}{{ vorlage.name }}{% endblock %}
+{% block nav_vorlagen %}active{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-ghost btn-sm" href="{% url 'planning:vorlage_liste' %}">Zurück</a>
+<a class="btn btn-primary btn-sm" href="{% url 'planning:vorlage_bearbeiten' vorlage.pk %}">Bearbeiten</a>
+{% endblock %}
+{% block content %}
+<div class="card card-pad">
+  <div class="section-head"><h2>Zeitschema</h2>
+    {% if vorlage.beginn >= vorlage.ende %}<span class="badge badge-info"><span class="dot"></span>Nachtschicht</span>{% endif %}
+  </div>
+  <table class="tbl">
+    <tbody>
+      <tr><td>Name</td><td><span class="color-dot" style="background:{{ vorlage.farbe }}"></span>{{ vorlage.name }}</td></tr>
+      <tr><td>Zeit</td><td class="tnum">{{ vorlage.beginn|time:"H:i" }}–{{ vorlage.ende|time:"H:i" }} Uhr</td></tr>
+      <tr><td>Dauer</td><td class="tnum">{{ vorlage.dauer_stunden|floatformat:"-2" }} h</td></tr>
+      <tr><td>Abteilung</td><td>{{ vorlage.abteilung.name|default:"—" }}</td></tr>
+      <tr><td>Benötigte Rolle</td><td>{{ vorlage.benoetigte_rolle|default:"—" }}</td></tr>
+      <tr><td>Farbe im Plan</td><td>{{ vorlage.farbe }}</td></tr>
+    </tbody>
+  </table>
+</div>
+<form method="post" action="{% url 'planning:vorlage_loeschen' vorlage.pk %}" class="card card-pad" style="margin-top:16px"
+      onsubmit="return confirm('Diese Vorlage wirklich löschen?');">
+  {% csrf_token %}
+  <div class="section-head"><h2>Vorlage löschen</h2></div>
+  <p class="field-hint">Entfernt die Vorlage dauerhaft. Bereits geplante Schichten dieser Vorlage werden mitgelöscht.</p>
+  <div style="margin-top:8px"><button class="btn btn-danger btn-sm" type="submit">Löschen</button></div>
+</form>
+{% endblock %}

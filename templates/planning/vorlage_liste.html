@@ -1,0 +1,38 @@
+{% extends "main.html" %}
+{% block title %}Schichtvorlagen · Schichtwerk{% endblock %}
+{% block page_title %}Schichtvorlagen{% endblock %}
+{% block nav_vorlagen %}active{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-primary btn-sm" href="{% url 'planning:vorlage_neu' %}">Vorlage anlegen</a>
+{% endblock %}
+{% block content %}
+{% if vorlagen %}
+<div class="card">
+  <table class="tbl">
+    <thead>
+      <tr><th>Name</th><th>Zeit</th><th class="num">Dauer</th><th>Abteilung</th><th>Benötigte Rolle</th></tr>
+    </thead>
+    <tbody>
+      {% for vorlage in vorlagen %}
+      <tr>
+        <td>
+          <a href="{% url 'planning:vorlage_detail' vorlage.pk %}">
+            <span class="color-dot" style="background:{{ vorlage.farbe }}"></span>{{ vorlage.name }}
+          </a>
+        </td>
+        <td class="tnum">{{ vorlage.beginn|time:"H:i" }}–{{ vorlage.ende|time:"H:i" }}</td>
+        <td class="num tnum">{{ vorlage.dauer_stunden|floatformat:"-2" }} h</td>
+        <td>{{ vorlage.abteilung.name|default:"—" }}</td>
+        <td>{{ vorlage.benoetigte_rolle|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card"><div class="empty">
+  <p>Noch keine Schichtvorlagen angelegt.</p>
+  <a class="btn btn-primary btn-sm" href="{% url 'planning:vorlage_neu' %}">Erste Vorlage anlegen</a>
+</div></div>
+{% endif %}
+{% endblock %}

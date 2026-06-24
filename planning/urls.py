@@ -13,4 +13,9 @@ urlpatterns = [
         views.mitarbeiter_bearbeiten,
         name="mitarbeiter_bearbeiten",
     ),
+    path("vorlagen/", views.vorlage_liste, name="vorlage_liste"),
+    path("vorlagen/neu/", views.vorlage_neu, name="vorlage_neu"),
+    path("vorlagen/<int:pk>/", views.vorlage_detail, name="vorlage_detail"),
+    path("vorlagen/<int:pk>/bearbeiten/", views.vorlage_bearbeiten, name="vorlage_bearbeiten"),
+    path("vorlagen/<int:pk>/loeschen/", views.vorlage_loeschen, name="vorlage_loeschen"),
 ]

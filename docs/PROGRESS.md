@@ -4,6 +4,12 @@ Neueste oben.
 
 ## Done
 
+- **M3 · Schichtvorlagen-CRUD** — Liste (Name/Farbpunkt, Zeitfenster, Dauer in h,
+  Abteilung, benötigte Rolle), Detail (mit Nachtschicht-Badge), Anlegen/Bearbeiten
+  per ModelForm und Löschen (POST-only, Bestätigungsdialog). `SchichtvorlageForm`
+  begrenzt Abteilungen auf den Betrieb, setzt ihn beim Speichern und weist eine
+  Dauer-0-Vorlage (Beginn = Ende) ab; Nachtschichten über Mitternacht bleiben gültig.
+  Nav-Eintrag „Schichtvorlagen". 39 Tests grün (13 neu), ruff sauber.
 - **M2 · Mitarbeiter-CRUD** — Liste (Tabelle mit Farbpunkt/Status-Badge), Detail,
   Anlegen/Bearbeiten per ModelForm. Mandantenscoping über `services.aktueller_betrieb()`
   (einmandantiger Prototyp bis M10); Abteilungsauswahl auf den Betrieb begrenzt.

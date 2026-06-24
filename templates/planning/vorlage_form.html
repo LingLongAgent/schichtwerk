@@ -1,0 +1,24 @@
+{% extends "main.html" %}
+{% block title %}{% if ist_neu %}Vorlage anlegen{% else %}{{ vorlage.name }} bearbeiten{% endif %} · Schichtwerk{% endblock %}
+{% block page_title %}{% if ist_neu %}Schichtvorlage anlegen{% else %}Schichtvorlage bearbeiten{% endif %}{% endblock %}
+{% block nav_vorlagen %}active{% endblock %}
+{% block content %}
+<form method="post" class="card card-pad" style="max-width:620px">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="field-error">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="form-grid">
+    {% for field in form %}
+    <div class="field"{% if field.name == "name" or field.name == "benoetigte_rolle" %} style="grid-column:1 / -1"{% endif %}>
+      <label class="field-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+      {% if field.errors %}<div class="field-error">{{ field.errors|join:", " }}</div>{% endif %}
+      {% if field.help_text %}<div class="field-hint">{{ field.help_text }}</div>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="section-head" style="margin-top:8px">
+    <a class="btn btn-ghost btn-sm" href="{% if ist_neu %}{% url 'planning:vorlage_liste' %}{% else %}{% url 'planning:vorlage_detail' vorlage.pk %}{% endif %}">Abbrechen</a>
+    <button class="btn btn-primary btn-sm" type="submit">{% if ist_neu %}Anlegen{% else %}Speichern{% endif %}</button>
+  </div>
+</form>
+{% endblock %}
